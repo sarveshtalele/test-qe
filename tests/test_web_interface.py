@@ -50,11 +50,12 @@ def test_delete_button_for_each_task():
 
 def test_no_done_button_for_done_tasks():
     """BR-12: Only open tasks have 'Done' button."""
-    client.post("/tasks", json={"title": "Open"})
-    client.patch("/tasks/1/complete")
+    create_reply = client.post("/tasks", json={"title": "Open"})
+    task_id = create_reply.json()["id"]
+    client.patch(f"/tasks/{task_id}/complete")
     reply = client.get("/")
     html = reply.text
-    assert "data-id=\"1\"" in html
+    assert f'data-id="{task_id}"' in html
     assert "done-form" not in html
 
 

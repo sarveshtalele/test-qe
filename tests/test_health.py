@@ -11,6 +11,11 @@ def test_health_is_ok():
     assert reply.json() == {"status": "ok"}
 
 
+def test_health_returns_json_header():
+    reply = client.get("/health")
+    assert reply.headers["content-type"] == "application/json"
+
+
 def test_page_is_served():
     reply = client.get("/")
     assert reply.status_code == 200
