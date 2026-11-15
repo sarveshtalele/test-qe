@@ -1,3 +1,129 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>App</title></head>
-<body><div id="root"><h1>App</h1></div></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task Tracker</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  table { border-collapse: collapse; width: 100%; max-width: 600px; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+  th { background: #f0f0f0; }
+  .done { background: #e0ffe0; }
+  .error { color: red; margin-bottom: 10px; }
+  form { margin-bottom: 20px; }
+  form label { margin-right: 5px; }
+  form input { margin-right: 10px; }
+  button { margin-right: 5px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+function App() {
+  const [tasks, setTasks] = React.useState([]);
+  const [title, setTitle] = React.useState('');
+  const [dueDate, setDueDate] = React.useState('');
+  const [error, setError] = React.useState('');
+
+  React.useEffect(() => { fetchTasks(); }, []);
+
+  function fetchTasks() {
+    return fetch('/tasks')
+      .then(res => res.json())
+      .then(data => setTasks(data))
+      .catch(() => {});
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    const body = { title };
+    if (dueDate.trim()) body.due_date = dueDate.trim();
+    fetch('/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    .then(res => {
+      if (res.ok) {
+        return res.json().then(() => {
+          setTitle('');
+          setDueDate('');
+          fetchTasks();
+        });
+      } else {
+        return res.json().then(err => {
+          // API returns detail as a list of objects or a string
+          let msg = '';
+          if (Array.isArray(err.detail)) {
+            msg = err.detail.map(d => d.msg).join('; ');
+          } else {
+            msg = err.detail;
+          }
+          setError(msg);
+        });
+      }
+    })
+    .catch(() => setError('Network error'));
+  }
+
+  function handleComplete(taskId) {
+    fetch('/tasks/' + taskId + '/complete', { method: 'PATCH' })
+      .then(res => { if (res.ok) fetchTasks(); })
+      .catch(() => {});
+  }
+
+  function handleDelete(taskId) {
+    fetch('/tasks/' + taskId, { method: 'DELETE' })
+      .then(res => { if (res.ok) fetchTasks(); })
+      .catch(() => {});
+  }
+
+  return (
+    <div>
+      <h1>Task Tracker</h1>
+      <form onSubmit={handleSubmit}>
+        <label htmlFor="title">Title:</label>
+        <input id="title" value={title} onChange={e => setTitle(e.target.value)} required />
+        <label htmlFor="due_date">Due date:</label>
+        <input id="due_date" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+        <button type="submit">Add task</button>
+      </form>
+      {error && <div className="error">{error}</div>}
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Due date</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tasks.map(task => (
+            <tr key={task.id} className={task.status === 'done' ? 'done' : ''}>
+              <td>{task.title}</td>
+              <td>{task.due_date || '-'}</td>
+              <td>{task.status}</td>
+              <td>
+                {task.status === 'open' && <button onClick={() => handleComplete(task.id)}>Done</button>}
+                <button onClick={() => handleDelete(task.id)}>Delete</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
