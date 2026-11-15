@@ -6,9 +6,28 @@ client = TestClient(app)
 
 
 def test_health_is_ok():
+    """REQ-014: The API answers GET /health with HTTP 200 and {"status": "ok"}."""
     reply = client.get("/health")
     assert reply.status_code == 200
     assert reply.json() == {"status": "ok"}
+
+
+def test_in_memory_storage():
+    """REQ-015: Tasks are kept in memory; a restart clears them."""
+    # Create a task
+    reply = client.post("/tasks", json={"title": "ephemeral"})
+    assert reply.status_code == 201
+    task_id = reply.json()["id"]
+    # Verify it exists in memory
+    list_reply = client.get("/tasks")
+    assert any(t["id"] == task_id for t in list_reply.json())
+    # Simulate restart by clearing storage directly (as done in app.tasks)
+    import app.tasks
+    app.tasks._tasks.clear()
+    app.tasks._next_id = 1
+    # Verify task is gone
+    list_reply = client.get("/tasks")
+    assert not any(t["id"] == task_id for t in list_reply.json())
 
 
 def test_page_is_served():
