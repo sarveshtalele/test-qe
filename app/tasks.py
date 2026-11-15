@@ -54,3 +54,32 @@ def create_task(payload: TaskCreate) -> Task:
     _tasks.append(task)
     _next_id += 1
     return task
+
+
+@router.patch("/tasks/{task_id}/complete")
+def complete_task(task_id: int) -> Task:
+    for task in _tasks:
+        if task.id == task_id:
+            if task.status == "done":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="task is already done",
+                )
+            task.status = "done"
+            return task
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="task not found",
+    )
+
+
+@router.delete("/tasks/{task_id}")
+def delete_task(task_id: int) -> dict:
+    for i, task in enumerate(_tasks):
+        if task.id == task_id:
+            _tasks.pop(i)
+            return {"ok": True}
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="task not found",
+    )

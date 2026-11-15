@@ -134,3 +134,53 @@ class TestCreateTask:
         reply = client.get("/health")
         assert reply.status_code == 200
         assert reply.json() == {"status": "ok"}
+
+
+class TestCompleteTask:
+    def test_complete_open_task(self):
+        """REQ-007: Mark an open task as done -> 200 with status done"""
+        create = client.post("/tasks", json={"title": "to do"})
+        task_id = create.json()["id"]
+        reply = client.patch(f"/tasks/{task_id}/complete")
+        assert reply.status_code == 200
+        data = reply.json()
+        assert data["status"] == "done"
+        # Verify the task is now done via GET
+        get_reply = client.get(f"/tasks/{task_id}")
+        # There's no GET by id endpoint, but we can verify via list
+        all_tasks = client.get("/tasks?status=done").json()
+        assert any(t["id"] == task_id and t["status"] == "done" for t in all_tasks)
+
+    def test_complete_already_done(self):
+        """REQ-008: Completing a done task -> 409 with 'task is already done'"""
+        create = client.post("/tasks", json={"title": "done task"})
+        task_id = create.json()["id"]
+        client.patch(f"/tasks/{task_id}/complete")
+        reply = client.patch(f"/tasks/{task_id}/complete")
+        assert reply.status_code == 409
+        assert reply.json()["detail"] == "task is already done"
+
+    def test_complete_not_found(self):
+        """REQ-009: Completing non-existent id -> 404 with 'task not found'"""
+        reply = client.patch("/tasks/999/complete")
+        assert reply.status_code == 404
+        assert reply.json()["detail"] == "task not found"
+
+
+class TestDeleteTask:
+    def test_delete_existing(self):
+        """REQ-010: Delete a task -> 200 with ok"""
+        create = client.post("/tasks", json={"title": "delete me"})
+        task_id = create.json()["id"]
+        reply = client.delete(f"/tasks/{task_id}")
+        assert reply.status_code == 200
+        assert reply.json() == {"ok": True}
+        # Verify removed
+        all_tasks = client.get("/tasks").json()
+        assert not any(t["id"] == task_id for t in all_tasks)
+
+    def test_delete_not_found(self):
+        """REQ-009: Deleting non-existent id -> 404 with 'task not found'"""
+        reply = client.delete("/tasks/999")
+        assert reply.status_code == 404
+        assert reply.json()["detail"] == "task not found"
