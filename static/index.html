@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Task Tracker</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 1rem; }
+    .task { display: flex; align-items: center; gap: 1rem; padding: 0.5rem 0; border-bottom: 1px solid #ccc; }
+    .task .title { flex: 1; font-weight: bold; }
+    .task .due { color: #555; font-size: 0.9em; }
+    .task .status { font-size: 0.9em; text-transform: capitalize; }
+    .task form { display: inline; }
+    .error { color: red; margin-top: 0.5rem; }
+    .add-form { margin-bottom: 1rem; }
+    .add-form input { margin-right: 0.5rem; }
+    .add-form .error { margin-top: 0.25rem; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    (function() {
+      const root = document.getElementById('root');
+
+      function render() {
+        fetch('/tasks')
+          .then(r => r.json())
+          .then(tasks => {
+            let html = '<h1>Task Tracker</h1>';
+            html += '<div class="add-form">';
+            html += '<h2>Add Task</h2>';
+            html += '<form id="add-form">';
+            html += '<input type="text" id="title-input" placeholder="Task title" required>';
+            html += '<input type="date" id="due-input">';
+            html += '<button type="submit">Add</button>';
+            html += '</form>';
+            html += '<div id="add-error" class="error"></div>';
+            html += '</div>';
+            html += '<div id="task-list">';
+            tasks.forEach(task => {
+              html += '<div class="task" data-id="' + task.id + '">';
+              html += '<span class="title">' + escapeHtml(task.title) + '</span>';
+              html += '<span class="due">' + (task.due_date ? escapeHtml(task.due_date) : 'No due date') + '</span>';
+              html += '<span class="status">' + escapeHtml(task.status) + '</span>';
+              if (task.status === 'open') {
+                html += '<form class="done-form" method="post" action="/tasks/' + task.id + '/complete">';
+                html += '<button type="submit">Done</button>';
+                html += '</form>';
+              }
+              html += '<form class="delete-form" method="post" action="/tasks/' + task.id + '/delete">';
+              html += '<button type="submit">Delete</button>';
+              html += '</form>';
+              html += '</div>';
+            });
+            html += '</div>';
+            root.innerHTML = html;
+
+            document.getElementById('add-form').addEventListener('submit', function(e) {
+              e.preventDefault();
+              const title = document.getElementById('title-input').value;
+              const due = document.getElementById('due-input').value;
+              const body = { title: title };
+              if (due) body.due_date = due;
+              fetch('/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+              }).then(response => {
+                if (response.ok) {
+                  document.getElementById('add-error').innerText = '';
+                  render();
+                } else {
+                  return response.json().then(err => {
+                    document.getElementById('add-error').innerText = err.detail || 'Error creating task';
+                  });
+                }
+              }).catch(() => {
+                document.getElementById('add-error').innerText = 'Network error';
+              });
+            });
+
+            document.querySelectorAll('.done-form').forEach(form => {
+              form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                fetch(this.action, { method: 'PATCH' }).then(r => {
+                  if (r.ok) render();
+                  else console.error('Failed to complete task');
+                });
+              });
+            });
+
+            document.querySelectorAll('.delete-form').forEach(form => {
+              form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                fetch(this.action, { method: 'DELETE' }).then(r => {
+                  if (r.ok) render();
+                  else console.error('Failed to delete task');
+                });
+              });
+            });
+          });
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(text));
+        return div.innerHTML;
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>
