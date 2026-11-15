@@ -9,7 +9,8 @@ from pydantic import BaseModel
 app = FastAPI()
 
 
-# In-memory storage
+# Infrastructure: In-memory storage
+# Tasks are kept in memory in version 1.0; a restart clears them. (REQ-015)
 _tasks: dict[str, "Task"] = {}
 
 
