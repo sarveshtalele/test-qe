@@ -1,3 +1,102 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>App</title></head>
-<body><div id="root"><h1>App</h1></div></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Task Tracker</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; }
+    .error { color: red; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <h1>Task Tracker</h1>
+    <form id="add-form">
+      <input type="text" id="title-input" placeholder="Task title" required>
+      <input type="date" id="due-input">
+      <button type="submit">Add</button>
+    </form>
+    <div id="error-message" class="error"></div>
+    <ul id="task-list"></ul>
+  </div>
+  <script>
+    const API = '/tasks';
+    const form = document.getElementById('add-form');
+    const titleInput = document.getElementById('title-input');
+    const dueInput = document.getElementById('due-input');
+    const errorDiv = document.getElementById('error-message');
+    const taskList = document.getElementById('task-list');
+
+    async function loadTasks() {
+      const res = await fetch(API);
+      const tasks = await res.json();
+      taskList.innerHTML = '';
+      tasks.forEach(task => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${escapeHtml(task.title)}</span>
+          <span>${task.due_date || ''}</span>
+          <span>${task.status}</span>`;
+        if (task.status === 'open') {
+          const doneBtn = document.createElement('button');
+          doneBtn.textContent = 'Done';
+          doneBtn.onclick = async () => {
+            const res = await fetch(API + '/' + task.id + '/complete', { method: 'PATCH' });
+            if (res.ok) loadTasks();
+            else {
+              const err = await res.json();
+              errorDiv.textContent = err.detail;
+            }
+          };
+          li.appendChild(doneBtn);
+        }
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Delete';
+        delBtn.onclick = async () => {
+          const res = await fetch(API + '/' + task.id, { method: 'DELETE' });
+          if (res.ok) loadTasks();
+          else {
+            const err = await res.json();
+            errorDiv.textContent = err.detail;
+          }
+        };
+        li.appendChild(delBtn);
+        taskList.appendChild(li);
+      });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const title = titleInput.value.trim();
+      if (!title) return;
+      const body = { title };
+      if (dueInput.value) {
+        body.due_date = dueInput.value;
+      }
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (res.ok) {
+        errorDiv.textContent = '';
+        titleInput.value = '';
+        dueInput.value = '';
+        loadTasks();
+      } else {
+        const err = await res.json();
+        errorDiv.textContent = err.detail;
+      }
+    };
+
+    loadTasks();
+  </script>
+</body>
+</html>
