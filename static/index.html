@@ -1,3 +1,88 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>App</title></head>
-<body><div id="root"><h1>App</h1></div></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Task Tracker</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; }
+    .error { color: red; margin-top: 0.5rem; }
+    ul { list-style: none; padding: 0; }
+    li { margin: 0.5rem 0; display: flex; align-items: center; gap: 0.5rem; }
+    .done { text-decoration: line-through; color: #888; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  const API = window.location.origin;
+
+  async function refresh() {
+    const res = await fetch(`${API}/tasks`);
+    const tasks = await res.json();
+    const ul = document.getElementById('task-list');
+    ul.innerHTML = tasks.map(t => {
+      const status = t.status === 'done' ? 'done' : '';
+      const doneBtn = t.status === 'open'
+        ? `<button onclick="doneTask('${t.id}')">Done</button>`
+        : '';
+      return `<li class="${status}">
+        <span>${t.title} (${t.dueDate || 'no due date'}) [${t.status}]</span>
+        ${doneBtn}
+        <button onclick="deleteTask('${t.id}')">Delete</button>
+      </li>`;
+    }).join('');
+  }
+
+  async function addTask(e) {
+    e.preventDefault();
+    const title = document.getElementById('title').value.trim();
+    const dueDate = document.getElementById('dueDate').value || null;
+    const err = document.getElementById('error');
+    err.textContent = '';
+    const res = await fetch(`${API}/tasks`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({title, dueDate})
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      err.textContent = data.detail || 'Error creating task';
+      return;
+    }
+    document.getElementById('title').value = '';
+    document.getElementById('dueDate').value = '';
+    await refresh();
+  }
+
+  async function doneTask(id) {
+    const res = await fetch(`${API}/tasks/${id}/complete`, {method: 'PATCH'});
+    if (!res.ok) {
+      const data = await res.json();
+      document.getElementById('error').textContent = data.detail || 'Error completing task';
+      return;
+    }
+    await refresh();
+  }
+
+  async function deleteTask(id) {
+    await fetch(`${API}/tasks/${id}`, {method: 'DELETE'});
+    await refresh();
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('add-form').addEventListener('submit', addTask);
+    await refresh();
+  });
+</script>
+<div>
+  <h1>Task Tracker</h1>
+  <form id="add-form">
+    <input id="title" type="text" placeholder="Task title" required>
+    <input id="dueDate" type="date">
+    <button type="submit">Add</button>
+  </form>
+  <div id="error" class="error"></div>
+  <ul id="task-list"></ul>
+</div>
+</body>
+</html>
