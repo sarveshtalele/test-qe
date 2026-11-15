@@ -7,6 +7,28 @@ _tasks: list[Task] = []
 _next_id = 1
 
 
+from typing_extensions import Annotated
+from fastapi import APIRouter, HTTPException, Query, status
+from app.models import Task, TaskCreate
+
+router = APIRouter()
+
+_tasks: list[Task] = []
+_next_id = 1
+
+
+@router.get("/tasks")
+def list_tasks(status: Annotated[str | None, Query()] = None) -> list[Task]:
+    if status is not None and status not in ("open", "done"):
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["query", "status"], "msg": "status must be open or done", "type": "value_error"}]
+        )
+    tasks = [t for t in _tasks if status is None or t.status == status]
+    tasks.sort(key=lambda t: t.id, reverse=True)
+    return tasks
+
+
 @router.post("/tasks", status_code=status.HTTP_201_CREATED)
 def create_task(payload: TaskCreate) -> Task:
     global _next_id
