@@ -77,6 +77,15 @@ def test_delete_task_returns_204_and_removes_task():
     assert task_id not in ids
 
 
+def test_memory_storage_cleared_on_restart():
+    """REQ-015: Tasks are kept in memory; a restart of the application clears all tasks."""
+    # Simulate a restart: clear the module-level list
+    _tasks.clear()
+    reply = client.get("/tasks")
+    assert reply.status_code == 200
+    assert reply.json() == []
+
+
 def test_delete_nonexistent_task_returns_404():
     reply = client.delete("/tasks/nonexistent")
     assert reply.status_code == 404
