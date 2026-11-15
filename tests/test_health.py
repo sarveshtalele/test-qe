@@ -32,3 +32,12 @@ def test_health_method_must_be_get():
 def test_health_response_has_only_status_key():
     reply = client.get("/health")
     assert set(reply.json().keys()) == {"status"}
+
+
+def test_memory_storage_cleared_on_restart():
+    """REQ-014: Tasks are kept in memory in version 1.0; a restart clears them."""
+    from app.routers.tasks import _tasks
+    _tasks.clear()
+    reply = client.get("/tasks")
+    assert reply.status_code == 200
+    assert reply.json() == []
