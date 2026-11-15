@@ -169,12 +169,12 @@ class TestCompleteTask:
 
 class TestDeleteTask:
     def test_delete_existing(self):
-        """REQ-010: Delete a task -> 200 with ok"""
+        """REQ-010: Delete a task -> 204 with no body"""
         create = client.post("/tasks", json={"title": "delete me"})
         task_id = create.json()["id"]
         reply = client.delete(f"/tasks/{task_id}")
-        assert reply.status_code == 200
-        assert reply.json() == {"ok": True}
+        assert reply.status_code == 204
+        assert reply.text == ""
         # Verify removed
         all_tasks = client.get("/tasks").json()
         assert not any(t["id"] == task_id for t in all_tasks)

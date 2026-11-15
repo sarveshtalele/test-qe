@@ -1,14 +1,5 @@
-from fastapi import APIRouter, HTTPException, status
-from app.models import Task, TaskCreate
-
-router = APIRouter()
-
-_tasks: list[Task] = []
-_next_id = 1
-
-
 from typing_extensions import Annotated
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from app.models import Task, TaskCreate
 
 router = APIRouter()
@@ -73,12 +64,12 @@ def complete_task(task_id: int) -> Task:
     )
 
 
-@router.delete("/tasks/{task_id}")
-def delete_task(task_id: int) -> dict:
+@router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(task_id: int) -> Response:
     for i, task in enumerate(_tasks):
         if task.id == task_id:
             _tasks.pop(i)
-            return {"ok": True}
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="task not found",
