@@ -17,3 +17,8 @@ def health() -> dict:
 @app.get("/")
 def page() -> FileResponse:
     return FileResponse(Path(__file__).parent.parent / "static" / "index.html")
+
+
+@app.get("/api/config")
+def config() -> dict:
+    return {}

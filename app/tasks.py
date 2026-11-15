@@ -11,6 +11,9 @@ store = TaskStore()
 
 @router.post("/tasks", response_model=Task, status_code=200)
 def create_task(data: TaskIn) -> Task:
+    from fastapi import HTTPException
+    if not data.title.strip():
+        raise HTTPException(status_code=422, detail="Task title is required")
     return store.create(data)
 
 
