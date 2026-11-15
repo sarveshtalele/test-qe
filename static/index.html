@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task Tracker</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script>
+    // Minimal React application for task tracker
+    (function() {
+      const { createElement: h, useState, useEffect } = React;
+
+      function App() {
+        const [tasks, setTasks] = useState([]);
+        const [title, setTitle] = useState('');
+        const [dueDate, setDueDate] = useState('');
+        const [errorMsg, setErrorMsg] = useState('');
+
+        function loadTasks() {
+          fetch('/tasks')
+            .then(r => r.json())
+            .then(data => setTasks(data))
+            .catch(() => {});
+        }
+
+        useEffect(() => { loadTasks(); }, []);
+
+        function addTask(e) {
+          e.preventDefault();
+          setErrorMsg('');
+          const body = { title };
+          if (dueDate) body.due_date = dueDate;
+          fetch('/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }).then(r => {
+            if (!r.ok) {
+              return r.json().then(err => { throw new Error(err.detail); });
+            }
+            return r.json();
+          }).then(() => {
+            setTitle('');
+            setDueDate('');
+            loadTasks();
+          }).catch(err => {
+            setErrorMsg(err.message);
+          });
+        }
+
+        function completeTask(id) {
+          fetch('/tasks/' + id + '/complete', { method: 'PATCH' })
+            .then(r => {
+              if (!r.ok) throw new Error('Failed to complete');
+              loadTasks();
+            }).catch(() => {});
+        }
+
+        function deleteTask(id) {
+          fetch('/tasks/' + id, { method: 'DELETE' })
+            .then(r => {
+              if (!r.ok) throw new Error('Failed to delete');
+              loadTasks();
+            }).catch(() => {});
+        }
+
+        return h('div', { style: { maxWidth: '600px', margin: 'auto', fontFamily: 'sans-serif' } },
+          h('h1', null, 'Task Tracker'),
+          h('form', { onSubmit: addTask },
+            h('div', null,
+              h('label', null, 'Title: '),
+              h('input', { value: title, onChange: e => setTitle(e.target.value), required: true })
+            ),
+            h('div', null,
+              h('label', null, 'Due date (YYYY-MM-DD): '),
+              h('input', { value: dueDate, onChange: e => setDueDate(e.target.value), pattern: '\\d{4}-\\d{2}-\\d{2}' })
+            ),
+            h('button', { type: 'submit' }, 'Add Task'),
+            errorMsg && h('p', { style: { color: 'red' } }, errorMsg)
+          ),
+          h('ul', null,
+            tasks.map(task =>
+              h('li', { key: task.id },
+                h('span', null, task.title + ' — ' + (task.due_date || 'no due date') + ' — ' + task.status),
+                task.status === 'open' && h('button', { onClick: () => completeTask(task.id) }, 'Done'),
+                h('button', { onClick: () => deleteTask(task.id) }, 'Delete')
+              )
+            )
+          )
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+    })();
+  </script>
+</body>
+</html>
