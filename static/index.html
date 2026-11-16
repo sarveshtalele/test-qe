@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task Tracker</title>
+  <style>
+    /* Minimal styling for task list */
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { color: #333; }
+    #app { }
+    .error { color: red; margin: 0.5rem 0; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid #ddd; }
+    li span { flex: 1; }
+    .status { font-size: 0.875rem; color: #555; }
+    form { margin: 1rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+    form input { padding: 0.25rem; }
+    button { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="root"><h1>App</h1></div>
+  <script>
+    (function() {
+      // REQ-012: Show tasks with title, due date, status, and add-task form
+      // REQ-013: Done button (open tasks) and Delete button (all tasks)
+      // REQ-014: When API rejects new task, show error message, keep form input
+
+      const root = document.getElementById('root');
+
+      // State
+      let tasks = [];
+      let formData = { title: '', due_date: '' };
+      let errorMessage = null;
+
+      function render() {
+        // Build UI
+        const titleEl = document.createElement('h1');
+        titleEl.textContent = 'Task Tracker';
+
+        const form = document.createElement('form');
+        form.innerHTML = `
+          <input name="title" placeholder="Title" value="${escapeHtml(formData.title)}" required>
+          <input name="due_date" placeholder="Due date (YYYY-MM-DD)" value="${escapeHtml(formData.due_date)}">
+          <button type="submit">Add Task</button>
+        `;
+        // Event listeners
+        form.addEventListener('submit', function(e) {
+          e.preventDefault();
+          const title = form.querySelector('[name="title"]').value;
+          const due_date = form.querySelector('[name="due_date"]').value;
+          addTask(title, due_date);
+        });
+
+        const errorEl = document.createElement('div');
+        if (errorMessage) {
+          errorEl.className = 'error';
+          errorEl.textContent = errorMessage;
+        }
+
+        const list = document.createElement('ul');
+        tasks.forEach(function(task) {
+          const li = document.createElement('li');
+          const span = document.createElement('span');
+          const due = task.due_date ? ' (due: ' + task.due_date + ')' : '';
+          span.textContent = task.title + due;
+          const statusSpan = document.createElement('span');
+          statusSpan.className = 'status';
+          statusSpan.textContent = '[' + task.status + ']';
+          li.appendChild(span);
+          li.appendChild(statusSpan);
+          if (task.status === 'open') {
+            const doneBtn = document.createElement('button');
+            doneBtn.textContent = 'Done';
+            doneBtn.addEventListener('click', function() {
+              completeTask(task.id);
+            });
+            li.appendChild(doneBtn);
+          }
+          const delBtn = document.createElement('button');
+          delBtn.textContent = 'Delete';
+          delBtn.addEventListener('click', function() {
+            deleteTask(task.id);
+          });
+          li.appendChild(delBtn);
+          list.appendChild(li);
+        });
+
+        // Clear root and rebuild
+        root.innerHTML = '';
+        root.appendChild(titleEl);
+        root.appendChild(form);
+        root.appendChild(errorEl);
+        root.appendChild(list);
+      }
+
+      function escapeHtml(str) {
+        return String(str).replace(/["&'<>]/g, function(c) {
+          if (c === '"') return '&quot;';
+          if (c === '&') return '&amp;';
+          if (c === "'") return '&#39;';
+          if (c === '<') return '&lt;';
+          if (c === '>') return '&gt;';
+          return c;
+        });
+      }
+
+      // API calls
+      function loadTasks() {
+        fetch('/tasks')
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            tasks = data;
+            render();
+          })
+          .catch(function(err) {
+            errorMessage = 'Failed to load tasks.';
+            render();
+          });
+      }
+
+      function addTask(title, due_date) {
+        const body = { title: title };
+        if (due_date) body.due_date = due_date;
+        fetch('/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        })
+        .then(function(r) {
+          if (r.status !== 201) {
+            // REQ-014: show API error message, keep form input
+            return r.json().then(function(errData) {
+              const detail = errData.detail || 'Failed to create task';
+              errorMessage = detail;
+              // formData remains as is (preserve typed values)
+              render();
+            });
+          } else {
+            errorMessage = null;
+            formData.title = '';
+            formData.due_date = '';
+            return loadTasks();
+          }
+        })
+        .catch(function(err) {
+          errorMessage = 'Network error.';
+          render();
+        });
+      }
+
+      function completeTask(id) {
+        fetch('/tasks/' + id + '/complete', { method: 'PATCH' })
+          .then(function(r) {
+            if (r.ok) return loadTasks();
+            else return r.json().then(function(errData) {
+              errorMessage = errData.detail || 'Failed to complete task';
+              render();
+            });
+          })
+          .catch(function(err) {
+            errorMessage = 'Network error.';
+            render();
+          });
+      }
+
+      function deleteTask(id) {
+        fetch('/tasks/' + id, { method: 'DELETE' })
+          .then(function(r) {
+            if (r.status === 204) return loadTasks();
+            else return r.json().then(function(errData) {
+              errorMessage = errData.detail || 'Failed to delete task';
+              render();
+            });
+          })
+          .catch(function(err) {
+            errorMessage = 'Network error.';
+            render();
+          });
+      }
+
+      // Initial load
+      loadTasks();
+    })();
+  </script>
+</body>
+</html>
