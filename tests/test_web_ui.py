@@ -1,8 +1,20 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+import app.routers.tasks as tasks_module
 
 client = TestClient(app)
+
+# Reset in-memory storage before each test to avoid side effects
+client.app.dependency_overrides = {}  # ensure clean
+
+
+def reset_storage() -> None:
+    tasks_module._tasks_db.clear()
+    tasks_module._next_id = 1
+
+
+reset_storage()
 
 
 def test_page_displays_list_with_title_due_date_and_status_and_form():
