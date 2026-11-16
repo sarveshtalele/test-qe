@@ -19,6 +19,7 @@ reset_storage()
 
 def test_page_displays_list_with_title_due_date_and_status_and_form():
     """REQ-011: The page shows the list of tasks with their title, due date and status, and a form to add a task."""
+    reset_storage()
     client.post("/tasks", json={"title": "Write report", "due_date": "2025-06-01"})
     client.post("/tasks", json={"title": "Meeting"})
 
@@ -35,6 +36,7 @@ def test_page_displays_list_with_title_due_date_and_status_and_form():
 
 def test_open_task_has_done_button_and_each_task_has_delete_button():
     """REQ-012: Each open task has a 'Done' button that completes it, and each task has a 'Delete' button."""
+    reset_storage()
     client.post("/tasks", json={"title": "Open task"})
     r = client.post("/tasks", json={"title": "Done task"})
     done_id = r.json()["id"]
