@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Task Tracker</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; align-items: center; gap: 1rem; padding: 0.5rem 0; border-bottom: 1px solid #ccc; }
+    .status { font-size: 0.8em; color: #555; }
+    .error { color: #cc0000; margin-bottom: 0.5rem; }
+    form { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    input, button { padding: 0.25rem 0.5rem; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  const API = '';  // same origin
+
+  async function loadTasks() {
+    const res = await fetch(API + '/tasks');
+    return res.json();
+  }
+
+  async function createTask(title, dueDate) {
+    const body = { title, due_date: dueDate || null };
+    const res = await fetch(API + '/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to create task');
+    }
+    return res.json();
+  }
+
+  async function completeTask(id) {
+    const res = await fetch(API + '/tasks/' + id + '/complete', { method: 'PATCH' });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to complete task');
+    }
+    return res.json();
+  }
+
+  async function deleteTask(id) {
+    const res = await fetch(API + '/tasks/' + id, { method: 'DELETE' });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to delete task');
+    }
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(s);
+    return div.innerHTML;
+  }
+
+  function formatDate(d) {
+    if (!d) return '';
+    return d; // already string from API
+  }
+
+  function renderApp(tasks, error) {
+    const root = document.getElementById('root');
+
+    const errorHtml = error ? '<div class="error">' + escapeHtml(error) + '</div>' : '';
+
+    const listHtml = tasks.map(t => {
+      const doneBtn = t.status === 'open'
+        ? '<button onclick="handleComplete(' + t.id + ')">Done</button>'
+        : '';
+      const delBtn = '<button onclick="handleDelete(' + t.id + ')">Delete</button>';
+      return '<li>' +
+        '<strong>' + escapeHtml(t.title) + '</strong>' +
+        (t.due_date ? ' <span>' + escapeHtml(t.due_date) + '</span>' : '') +
+        ' <span class="status">[' + escapeHtml(t.status) + ']</span>' +
+        doneBtn + ' ' + delBtn +
+        '</li>';
+    }).join('');
+
+    root.innerHTML =
+      '<h1>Task Tracker</h1>' +
+      errorHtml +
+      '<form id="add-form">' +
+        '<input type="text" id="title-input" placeholder="Task title" required>' +
+        '<input type="date" id="due-input">' +
+        '<button type="submit">Add Task</button>' +
+      '</form>' +
+      '<ul>' + listHtml + '</ul>';
+
+    document.getElementById('add-form').addEventListener('submit', handleAdd);
+
+    // Keep typed input after error
+    if (error) {
+      const titleInput = document.getElementById('title-input');
+      const dueInput = document.getElementById('due-input');
+      if (window._lastTitle != null) titleInput.value = window._lastTitle;
+      if (window._lastDue != null) dueInput.value = window._lastDue;
+    }
+  }
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    const titleInput = document.getElementById('title-input');
+    const dueInput = document.getElementById('due-input');
+    const title = titleInput.value.trim();
+    const dueDate = dueInput.value || null;
+
+    // Save typed values for potential error restoration
+    window._lastTitle = titleInput.value;
+    window._lastDue = dueInput.value;
+
+    try {
+      await createTask(title, dueDate);
+      window._lastTitle = '';
+      window._lastDue = '';
+      const tasks = await loadTasks();
+      renderApp(tasks, null);
+    } catch (err) {
+      const tasks = await loadTasks();
+      renderApp(tasks, err.message);
+    }
+  }
+
+  window.handleComplete = async function(id) {
+    try {
+      await completeTask(id);
+      const tasks = await loadTasks();
+      renderApp(tasks, null);
+    } catch (err) {
+      const tasks = await loadTasks();
+      renderApp(tasks, err.message);
+    }
+  };
+
+  window.handleDelete = async function(id) {
+    try {
+      await deleteTask(id);
+      const tasks = await loadTasks();
+      renderApp(tasks, null);
+    } catch (err) {
+      const tasks = await loadTasks();
+      renderApp(tasks, err.message);
+    }
+  };
+
+  (async function init() {
+    const tasks = await loadTasks();
+    renderApp(tasks, null);
+  })();
+</script>
+</body>
+</html>
