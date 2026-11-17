@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createRequire } from "module";
 
-import { addTask, listTasks, findTask, updateTask, deleteTask, tasks } from "../../lib/store.js";
+const require = createRequire(import.meta.url);
 
-// Reset store in-place
+// REQ-015: Tasks are kept in memory in version 1.0; a restart clears them.
+// Unit tests for store module
+
 function freshStore() {
-  tasks.length = 0;
-  return { addTask, listTasks, findTask, updateTask, deleteTask, tasks };
+  delete require.cache[require.resolve("../../lib/store.js")];
+  const store = require("../../lib/store.js");
+  store.tasks.length = 0;
+  return store;
 }
 
 test("addTask creates a task with correct fields", () => {
@@ -70,4 +75,21 @@ test("deleteTask removes task and returns true", () => {
 test("deleteTask returns false for nonexistent id", () => {
   const { deleteTask } = freshStore();
   assert.equal(deleteTask("bad-id"), false);
+});
+
+test("REQ-015: module re-import simulates restart (in-memory cleared)", () => {
+  // Simulate restart by clearing require cache and re-importing
+  delete require.cache[require.resolve("../../lib/store.js")];
+  const store1 = require("../../lib/store.js");
+  store1.addTask({ title: "Persist me" });
+  assert.equal(store1.tasks.length, 1);
+
+  // Simulate restart
+  delete require.cache[require.resolve("../../lib/store.js")];
+  const store2 = require("../../lib/store.js");
+  // After restart tasks are cleared
+  assert.equal(store2.tasks.length, 0);
+  // ID counter also resets
+  const task = store2.addTask({ title: "After restart" });
+  assert.equal(task.id, "1");
 });
