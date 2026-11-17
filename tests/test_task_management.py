@@ -102,4 +102,4 @@ def test_health_still_works():
 def test_page_still_served():
     resp = client.get("/")
     assert resp.status_code == 200
-    assert "<h1>App</h1>" in resp.text
+    assert "<h1>Task Tracker</h1>" in resp.text
