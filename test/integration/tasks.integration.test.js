@@ -65,6 +65,8 @@ test("GET /tasks lists tasks newest first", async () => {
   freshStore();
   const { POST, GET } = await import("../../app/tasks/route.js");
   const { tasks } = await import("../../lib/store.js");
+  // Ensure clean state
+  tasks.length = 0;
   await simulateRequest(POST, { method: "POST", body: { title: "First" } });
   await simulateRequest(POST, { method: "POST", body: { title: "Second" } });
   // Set createdAt so that Second is earlier than First
