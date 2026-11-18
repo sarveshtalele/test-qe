@@ -3,10 +3,15 @@
 <body>
 <div id="root">
   <h1>App</h1>
-  <form id="task-form">
+  <div data-testid="api-error-message" role="error" id="error-message" style="color:red; display:none;"></div>
+  <div>
+    <ul data-testid="task-list" role="list" id="task-list"></ul>
+  </div>
+  <form data-testid="add-task-form" role="form" id="task-form">
     <input data-testid="task-title-input" type="text" id="title" placeholder="Task title" required/>
     <input data-testid="task-due-date-input" type="text" id="due_date" placeholder="YYYY-MM-DD (optional)"/>
     <button data-testid="add-task-submit" type="submit">Add Task</button>
   </form>
 </div>
+<script src="/main.js"></script>
 </body></html>
