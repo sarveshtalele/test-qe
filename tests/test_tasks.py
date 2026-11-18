@@ -43,18 +43,8 @@ def test_create_task_title_too_long():
     reply = client.post("/tasks", json=payload)
     assert reply.status_code == 422
     detail = reply.json()["detail"]
-    # Pydantic v2 wraps errors in a list of dicts with 'msg'
-    errors = [e.get("msg", "") if isinstance(e, dict) else str(e) for e in detail]
-    # Flatten all 'msg' values from each error
-    msgs = []
-    for e in detail:
-        if isinstance(e, dict) and "msg" in e:
-            msgs.append(e["msg"])
-        elif isinstance(e, dict):
-            for v in e.values():
-                msgs.append(str(v))
-        else:
-            msgs.append(str(e))
+    # Pydantic v2 error list: each element is a dict with 'msg', 'type', etc.
+    msgs = [e["msg"] for e in detail]
     assert any("title must be 1 to 120 characters" in m for m in msgs)
 
 
@@ -63,16 +53,7 @@ def test_create_task_title_after_trim_too_long():
     reply = client.post("/tasks", json=payload)
     assert reply.status_code == 422
     detail = reply.json()["detail"]
-    errors = [e.get("msg", "") if isinstance(e, dict) else str(e) for e in detail]
-    msgs = []
-    for e in detail:
-        if isinstance(e, dict) and "msg" in e:
-            msgs.append(e["msg"])
-        elif isinstance(e, dict):
-            for v in e.values():
-                msgs.append(str(v))
-        else:
-            msgs.append(str(e))
+    msgs = [e["msg"] for e in detail]
     assert any("title must be 1 to 120 characters" in m for m in msgs)
 
 
@@ -81,16 +62,7 @@ def test_create_task_title_empty_after_trim():
     reply = client.post("/tasks", json=payload)
     assert reply.status_code == 422
     detail = reply.json()["detail"]
-    errors = [e.get("msg", "") if isinstance(e, dict) else str(e) for e in detail]
-    msgs = []
-    for e in detail:
-        if isinstance(e, dict) and "msg" in e:
-            msgs.append(e["msg"])
-        elif isinstance(e, dict):
-            for v in e.values():
-                msgs.append(str(v))
-        else:
-            msgs.append(str(e))
+    msgs = [e["msg"] for e in detail]
     assert any("title must be 1 to 120 characters" in m for m in msgs)
 
 
@@ -99,8 +71,8 @@ def test_create_task_invalid_due_date():
     reply = client.post("/tasks", json=payload)
     assert reply.status_code == 422
     detail = reply.json()["detail"]
-    errors = [e.get("msg", "") if isinstance(e, dict) else str(e) for e in detail]
-    assert any("due_date must be YYYY-MM-DD" in e for e in errors)
+    msgs = [e["msg"] for e in detail]
+    assert any("due_date must be YYYY-MM-DD" in m for m in msgs)
 
 
 def test_list_tasks_newest_first():

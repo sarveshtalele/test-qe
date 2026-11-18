@@ -14,14 +14,11 @@ class TaskCreateRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=120)
     due_date: Optional[str] = None
 
-    @field_validator("title")
+    @field_validator("title", mode="before")
     @classmethod
-    def trim_title(cls, v: str) -> str:
-        return v.strip()
-
-    @field_validator("title")
-    @classmethod
-    def title_length_after_trim(cls, v: str) -> str:
+    def strip_and_validate_title(cls, v: str) -> str:
+        if not isinstance(v, str):
+            raise ValueError("title must be a string")
         trimmed = v.strip()
         if not (1 <= len(trimmed) <= 120):
             raise ValueError("title must be 1 to 120 characters")
