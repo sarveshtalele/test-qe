@@ -37,7 +37,6 @@ def test_create_task_title_too_short():
 
 def test_create_task_title_too_long():
     # REQ-002: title with 121 characters after trim -> 422 from our validator
-    # Use a title that's 121 chars after providing it as-is
     reply = client.post("/tasks", json={"title": "a" * 121})
     assert reply.status_code == 422
     assert "title must be 1 to 120 characters" in reply.text
@@ -47,9 +46,7 @@ def test_create_task_invalid_due_date():
     # REQ-003
     reply = client.post("/tasks", json={"title": "Task", "due_date": "01-06-2025"})
     assert reply.status_code == 422
-    # The error message may come from pydantic with the text we specified
     detail = reply.json()["detail"]
-    # pydantic wraps it in a list; find the message with our text
     msg = " "
     if isinstance(detail, list):
         for err in detail:
@@ -83,7 +80,6 @@ def test_list_tasks_filter_open():
 
 def test_list_tasks_filter_done():
     # REQ-006
-    # create a task and mark it done
     created = client.post("/tasks", json={"title": "Filter done test"}).json()
     client.post(f"/tasks/{created['id']}/done")
     reply = client.get("/tasks?status=done")
@@ -130,7 +126,6 @@ def test_delete_task():
     created = client.post("/tasks", json={"title": "Delete me"}).json()
     reply = client.delete(f"/tasks/{created['id']}")
     assert reply.status_code == 204
-    # verify it no longer appears in list
     reply_list = client.get("/tasks")
     ids = [t["id"] for t in reply_list.json()]
     assert created["id"] not in ids
@@ -144,8 +139,6 @@ def test_delete_task_not_found():
 
 
 def test_tasks_in_memory_cleared_on_restart():
-    # REQ-015: Tasks are kept in memory; a restart clears them.
-    # Simulate restart by resetting internal state
     import app.tasks as tasks_module
     tasks_module._tasks.clear()
     tasks_module._next_id = 1
