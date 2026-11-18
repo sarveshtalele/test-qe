@@ -3,7 +3,13 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
+from app.models import TaskStatus
+from app.task_repo import TaskRepository
+from app.task_router import router as task_router
+
 app = FastAPI()
+app.state.task_repo = TaskRepository()
+app.include_router(task_router)
 
 
 @app.get("/health")
@@ -14,3 +20,4 @@ def health() -> dict:
 @app.get("/")
 def page() -> FileResponse:
     return FileResponse(Path(__file__).parent.parent / "static" / "index.html")
+
