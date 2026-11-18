@@ -3,7 +3,11 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
+from app.routers import tasks
+
 app = FastAPI()
+
+app.include_router(tasks.router)
 
 
 @app.get("/health")
