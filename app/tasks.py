@@ -27,10 +27,11 @@ def list_tasks(status: Optional[str] = Query(None)) -> list[Task]:
 def complete_task(id: int) -> Task:
     try:
         task = store.complete(id)
-    except ValueError:
+    except ValueError as e:
+        msg = str(e)
+        if msg == "task not found":
+            raise HTTPException(status_code=404, detail="task not found")
         raise HTTPException(status_code=409, detail="task is already done")
-    if task is None:
-        raise HTTPException(status_code=404, detail="task not found")
     return task
 
 

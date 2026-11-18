@@ -67,7 +67,7 @@ class TaskStore:
     def complete(self, task_id: int) -> Task:
         task = self._find(task_id)
         if task is None:
-            return None  # caller checks
+            raise ValueError("task not found")
         if task.status == "done":
             raise ValueError("task is already done")
         task.status = "done"
