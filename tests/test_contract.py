@@ -29,6 +29,11 @@ def _keys(reply, keys):  # ponytail: an empty list body shows no item, so its ke
             assert key in body, f"{key!r} is not in {reply.text[:300]}"
 
 
+def test_health_check_200():
+    reply = client.request('GET', '/health')
+    assert reply.status_code == 200, reply.text
+    assert reply.json()['status'] == 'ok'
+
 def test_create_task_201():
     reply = client.request('POST', '/tasks', json={'title': 'x'})
     assert reply.status_code == 201, reply.text
