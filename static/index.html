@@ -1,3 +1,160 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>App</title></head>
-<body><div id="root"><h1>App</h1></div></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Task Tracker</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    .task { border: 1px solid #ccc; padding: 0.5rem; margin: 0.5rem 0; }
+    .task button { margin-left: 0.5rem; }
+    .error { color: red; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <h1>App</h1>
+    <div data-testid="task-list" role="list" aria-label="Task list" id="task-list"></div>
+    <form data-testid="add-task-form" role="form" aria-label="Add task" id="add-task-form">
+      <input data-testid="title-input" role="input" aria-label="Title" type="text" id="title-input" placeholder="Title" required />
+      <input data-testid="due-date-input" role="input" aria-label="Due date" type="date" id="due-date-input" />
+      <button data-testid="add-task-button" role="button" aria-label="Add task" type="submit">Add task</button>
+      <div data-testid="form-error" role="error" aria-label="Error message" id="form-error" class="error"></div>
+    </form>
+  </div>
+  <script>
+    (function() {
+      const taskList = document.getElementById('task-list');
+      const form = document.getElementById('add-task-form');
+      const titleInput = document.getElementById('title-input');
+      const dueDateInput = document.getElementById('due-date-input');
+      const formError = document.getElementById('form-error');
+
+      function fetchTasks() {
+        fetch('/tasks')
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            renderTasks(data.tasks);
+          })
+          .catch(function(err) {
+            console.error('Failed to fetch tasks', err);
+          });
+      }
+
+      function renderTasks(tasks) {
+        taskList.innerHTML = '';
+        tasks.forEach(function(task) {
+          var item = document.createElement('div');
+          item.className = 'task';
+          item.setAttribute('data-testid', 'task-item');
+          item.setAttribute('role', 'item');
+          item.setAttribute('aria-label', 'Task');
+
+          var title = document.createElement('span');
+          title.setAttribute('data-testid', 'task-title');
+          title.setAttribute('role', 'text');
+          title.setAttribute('aria-label', 'Task title');
+          title.textContent = task.title;
+
+          var dueDate = document.createElement('span');
+          dueDate.setAttribute('data-testid', 'task-due-date');
+          dueDate.setAttribute('role', 'text');
+          dueDate.setAttribute('aria-label', 'Due date');
+          dueDate.textContent = task.due_date || 'No due date';
+
+          var status = document.createElement('span');
+          status.setAttribute('data-testid', 'task-status');
+          status.setAttribute('role', 'text');
+          status.setAttribute('aria-label', 'Status');
+          status.textContent = task.status;
+
+          var doneBtn = document.createElement('button');
+          doneBtn.setAttribute('data-testid', 'done-button');
+          doneBtn.setAttribute('role', 'button');
+          doneBtn.setAttribute('aria-label', 'Done');
+          doneBtn.textContent = 'Done';
+          doneBtn.addEventListener('click', function() {
+            fetch('/tasks/' + task.id + '/complete', { method: 'PATCH' })
+              .then(function(res) {
+                if (res.ok) {
+                  fetchTasks();
+                } else {
+                  console.error('Failed to complete task');
+                }
+              })
+              .catch(function(err) {
+                console.error('Error completing task', err);
+              });
+          });
+
+          var deleteBtn = document.createElement('button');
+          deleteBtn.setAttribute('data-testid', 'delete-button');
+          deleteBtn.setAttribute('role', 'button');
+          deleteBtn.setAttribute('aria-label', 'Delete');
+          deleteBtn.textContent = 'Delete';
+          deleteBtn.addEventListener('click', function() {
+            fetch('/tasks/' + task.id, { method: 'DELETE' })
+              .then(function(res) {
+                if (res.ok || res.status === 204) {
+                  fetchTasks();
+                } else {
+                  console.error('Failed to delete task');
+                }
+              })
+              .catch(function(err) {
+                console.error('Error deleting task', err);
+              });
+          });
+
+          item.appendChild(title);
+          item.appendChild(document.createTextNode(' '));
+          item.appendChild(dueDate);
+          item.appendChild(document.createTextNode(' '));
+          item.appendChild(status);
+          if (task.status === 'open') {
+            item.appendChild(doneBtn);
+          }
+          item.appendChild(deleteBtn);
+          taskList.appendChild(item);
+        });
+      }
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        formError.textContent = '';
+        var title = titleInput.value.trim();
+        if (!title) {
+          formError.textContent = 'Title is required.';
+          return;
+        }
+        var payload = { title: title };
+        var dueDate = dueDateInput.value;
+        if (dueDate) {
+          payload.due_date = dueDate;
+        }
+        fetch('/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+          .then(function(res) {
+            if (res.ok) {
+              titleInput.value = '';
+              dueDateInput.value = '';
+              fetchTasks();
+            } else {
+              return res.json().then(function(data) {
+                formError.textContent = data.detail || 'Failed to create task.';
+              });
+            }
+          })
+          .catch(function(err) {
+            formError.textContent = 'Network error.';
+            console.error('Error creating task', err);
+          });
+      });
+
+      fetchTasks();
+    })();
+  </script>
+</body>
+</html>
