@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, field_validator
 
 app = FastAPI()
+# The endpoint /health returns HTTP 200 with {"status": "ok"}.
 
 # in-memory task store
 _tasks: list[dict] = []
