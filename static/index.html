@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Task Tracker</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; background: #f5f5f5; }
+    #root { max-width: 600px; margin: auto; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h1 { margin-top: 0; }
+    form { margin-bottom: 1rem; }
+    form label { display: block; margin-top: 0.5rem; }
+    form input { width: 100%; box-sizing: border-box; padding: 0.4rem; }
+    form button { margin-top: 0.75rem; padding: 0.4rem 1rem; }
+    .error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; padding: 0.5rem; margin-bottom: 1rem; border-radius: 4px; }
+    ul { list-style: none; padding: 0; }
+    li { border-bottom: 1px solid #e5e7eb; padding: 0.75rem 0; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    li:last-child { border-bottom: none; }
+    .task-info { flex: 1; }
+    .task-title { font-weight: 600; }
+    .task-due { font-size: 0.85rem; color: #6b7280; }
+    .task-status { font-size: 0.85rem; }
+    .task-actions { display: flex; gap: 0.25rem; }
+    button.done { background: #16a34a; color: #fff; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+    button.delete { background: #dc2626; color: #fff; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+    button.done:disabled { opacity: 0.5; cursor: default; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <h1>Task Tracker</h1>
+    <div id="feedback" class="error" style="display:none;"></div>
+    <form id="add-task-form">
+      <label>Title <input type="text" id="title-input" required /></label>
+      <label>Due date (YYYY-MM-DD) <input type="text" id="due-date-input" placeholder="Optional" /></label>
+      <button type="submit">Add Task</button>
+    </form>
+    <ul id="task-list"></ul>
+  </div>
+  <script>
+    const API_BASE = '';
+    const form = document.getElementById('add-task-form');
+    const titleInput = document.getElementById('title-input');
+    const dueDateInput = document.getElementById('due-date-input');
+    const taskList = document.getElementById('task-list');
+    const feedback = document.getElementById('feedback');
+
+    function showError(msg) {
+      feedback.textContent = msg;
+      feedback.style.display = 'block';
+    }
+    function clearError() {
+      feedback.style.display = 'none';
+      feedback.textContent = '';
+    }
+
+    async function fetchTasks() {
+      const res = await fetch(API_BASE + '/tasks');
+      if (!res.ok) return [];
+      return res.json();
+    }
+
+    function render(tasks) {
+      taskList.innerHTML = '';
+      tasks.forEach(t => {
+        const li = document.createElement('li');
+        const info = document.createElement('div');
+        info.className = 'task-info';
+        info.innerHTML = `
+          <div class="task-title">${esc(t.title)}</div>
+          <div class="task-due">${t.due_date ? 'Due: ' + esc(t.due_date) : 'No due date'}</div>
+          <div class="task-status">Status: ${esc(t.status)}</div>
+        `;
+        li.appendChild(info);
+
+        const actions = document.createElement('div');
+        actions.className = 'task-actions';
+
+        // Done button (only for open tasks)
+        if (t.status === 'open') {
+          const doneBtn = document.createElement('button');
+          doneBtn.className = 'done';
+          doneBtn.textContent = 'Done';
+          doneBtn.addEventListener('click', async () => {
+            const res = await fetch(API_BASE + '/tasks/' + t.id + '/complete', { method: 'PATCH' });
+            if (!res.ok) {
+              const err = await res.json();
+              showError(err.detail || 'Error completing task');
+              return;
+            }
+            clearError();
+            const updated = await fetchTasks();
+            render(updated);
+          });
+          actions.appendChild(doneBtn);
+        }
+
+        // Delete button (every task)
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.addEventListener('click', async () => {
+          const res = await fetch(API_BASE + '/tasks/' + t.id, { method: 'DELETE' });
+          if (!res.ok) {
+            const err = await res.json();
+            showError(err.detail || 'Error deleting task');
+            return;
+          }
+          clearError();
+          const updated = await fetchTasks();
+          render(updated);
+        });
+        actions.appendChild(deleteBtn);
+
+        li.appendChild(actions);
+        taskList.appendChild(li);
+      });
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearError();
+      const title = titleInput.value.trim();
+      const due_date = dueDateInput.value.trim() || null;
+      const body = { title };
+      if (due_date) body.due_date = due_date;
+
+      const res = await fetch(API_BASE + '/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) {
+        // REQ-015: show API message and keep form values
+        try {
+          const err = await res.json();
+          showError(err.detail || 'Error adding task');
+        } catch {
+          showError('Error adding task');
+        }
+        return;
+      }
+
+      titleInput.value = '';
+      dueDateInput.value = '';
+      const updated = await fetchTasks();
+      render(updated);
+    });
+
+    // Initial render
+    fetchTasks().then(tasks => render(tasks));
+  </script>
+</body>
+</html>
