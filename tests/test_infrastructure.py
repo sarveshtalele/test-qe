@@ -2,6 +2,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+from app.database import InMemoryDatabase, db as live_db
+
 client = TestClient(app)
 
 
@@ -25,8 +27,6 @@ def test_health_with_trailing_slash():
 
 def test_tasks_are_in_memory():
     """REQ-015: Tasks are kept in memory in version 1.0; a restart clears them."""
-    from app.database import InMemoryDatabase
-    from app.database import db as live_db
     # Create a task via the live database
     task = live_db.create_task(title="In-memory task", due_date_str=None)
     # The task should be accessible from the same db instance

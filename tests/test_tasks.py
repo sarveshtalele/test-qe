@@ -45,7 +45,7 @@ def test_create_task_title_too_long():
     detail = reply.json()["detail"]
     # Pydantic v2 error list: each element is a dict with 'msg', 'type', etc.
     # The error is from the Field max_length=120, not from our custom validator
-    msgs = [e["msg"] for e in detail]
+    msgs = [e["msg"] if isinstance(e, dict) else str(e) for e in detail]
     assert any("title must be 1 to 120 characters" in m for m in msgs)
 
 
@@ -55,7 +55,7 @@ def test_create_task_title_after_trim_too_long():
     assert reply.status_code == 422
     detail = reply.json()["detail"]
     # After trimming, length is 121, still too long; error is from our custom validator
-    msgs = [e["msg"] for e in detail]
+    msgs = [e["msg"] if isinstance(e, dict) else str(e) for e in detail]
     # Both the Field and the custom validator may produce error messages; accept either
     assert any("title must be 1 to 120 characters" in m for m in msgs)
 
