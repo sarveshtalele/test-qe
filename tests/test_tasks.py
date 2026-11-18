@@ -5,20 +5,17 @@ from app.main import app
 
 
 @pytest.fixture
-def client():
+def tc():
     # Reset store for each test
-    from app.tasks import store as tasks_store
-    from app.task_store import TaskStore
-    tasks_store = TaskStore()
-    # hack: reassign the module-level store
     import app.tasks
+    from app.task_store import TaskStore
     app.tasks.store = TaskStore()
     return TestClient(app)
 
 
-def test_create_task_minimal(client):
+def test_create_task_minimal(tc):
     # REQ-001, REQ-004: create with just title -> status open, 201
-    resp = client.post("/tasks", json={"title": "Do something"})
+    resp = tc.post("/tasks", json={"title": "Do something"})
     assert resp.status_code == 201
     data = resp.json()
     assert data["title"] == "Do something"
@@ -27,25 +24,25 @@ def test_create_task_minimal(client):
     assert data["due_date"] is None
 
 
-def test_create_task_with_due_date():
+def test_create_task_with_due_date(tc):
     # REQ-001, REQ-003: with due date YYYY-MM-DD
-    resp = client.post("/tasks", json={"title": "Buy milk", "due_date": "2025-12-31"})
+    resp = tc.post("/tasks", json={"title": "Buy milk", "due_date": "2025-12-31"})
     assert resp.status_code == 201
     data = resp.json()
     assert data["due_date"] == "2025-12-31"
 
 
-def test_create_task_trim_title():
+def test_create_task_trim_title(tc):
     # REQ-002: title is trimmed
-    resp = client.post("/tasks", json={"title": "   spaced   "})
+    resp = tc.post("/tasks", json={"title": "   spaced   "})
     assert resp.status_code == 201
     assert resp.json()["title"] == "spaced"
 
 
-def test_create_task_title_too_long():
+def test_create_task_title_too_long(tc):
     # REQ-002: title >120 -> 422
     long = "x" * 121
-    resp = client.post("/tasks", json={"title": long})
+    resp = tc.post("/tasks", json={"title": long})
     assert resp.status_code == 422
     detail = resp.json().get("detail", "")
     # may be string or list of errors; check the message appears
@@ -54,9 +51,9 @@ def test_create_task_title_too_long():
     assert "title must be 1 to 120 characters" in detail
 
 
-def test_create_task_title_empty_after_trim():
+def test_create_task_title_empty_after_trim(tc):
     # REQ-002: only spaces -> 422
-    resp = client.post("/tasks", json={"title": "   "})
+    resp = tc.post("/tasks", json={"title": "   "})
     assert resp.status_code == 422
     detail = resp.json().get("detail", "")
     if isinstance(detail, list):
@@ -64,9 +61,9 @@ def test_create_task_title_empty_after_trim():
     assert "title must be 1 to 120 characters" in detail
 
 
-def test_create_task_invalid_due_date_format():
+def test_create_task_invalid_due_date_format(tc):
     # REQ-003: wrong format -> 422
-    resp = client.post("/tasks", json={"title": "Test", "due_date": "31-12-2025"})
+    resp = tc.post("/tasks", json={"title": "Test", "due_date": "31-12-2025"})
     assert resp.status_code == 422
     data = resp.json()
     detail = data.get("detail", "")
@@ -75,77 +72,77 @@ def test_create_task_invalid_due_date_format():
     assert "due_date must be YYYY-MM-DD" in detail
 
 
-def test_list_tasks_newest_first():
+def test_list_tasks_newest_first(tc):
     # REQ-005: newest first
-    client.post("/tasks", json={"title": "First"})
-    client.post("/tasks", json={"title": "Second"})
-    resp = client.get("/tasks")
+    tc.post("/tasks", json={"title": "First"})
+    tc.post("/tasks", json={"title": "Second"})
+    resp = tc.get("/tasks")
     assert resp.status_code == 200
     titles = [t["title"] for t in resp.json()]
     assert titles == ["Second", "First"]
 
 
-def test_list_tasks_filter_by_status():
+def test_list_tasks_filter_by_status(tc):
     # REQ-006: filter open/done
-    client.post("/tasks", json={"title": "Open task"})
-    resp = client.get("/tasks?status=open")
+    tc.post("/tasks", json={"title": "Open task"})
+    resp = tc.get("/tasks?status=open")
     assert resp.status_code == 200
     for t in resp.json():
         assert t["status"] == "open"
     # no tasks are done, so empty
-    resp = client.get("/tasks?status=done")
+    resp = tc.get("/tasks?status=done")
     assert resp.status_code == 200
     assert resp.json() == []
 
 
-def test_list_tasks_filter_invalid_status():
+def test_list_tasks_filter_invalid_status(tc):
     # REQ-006: invalid status -> 422
-    resp = client.get("/tasks?status=unknown")
+    resp = tc.get("/tasks?status=unknown")
     assert resp.status_code == 422
     assert resp.json()["detail"] == "status must be open or done"
 
 
-def test_complete_task():
+def test_complete_task(tc):
     # REQ-007: complete an open task -> 200, status done
-    create = client.post("/tasks", json={"title": "Task to finish"})
+    create = tc.post("/tasks", json={"title": "Task to finish"})
     tid = create.json()["id"]
-    resp = client.patch(f"/tasks/{tid}/complete")
+    resp = tc.patch(f"/tasks/{tid}/complete")
     assert resp.status_code == 200
     assert resp.json()["status"] == "done"
 
 
-def test_complete_already_done():
+def test_complete_already_done(tc):
     # REQ-008: complete twice -> 409
-    create = client.post("/tasks", json={"title": "Already done"})
+    create = tc.post("/tasks", json={"title": "Already done"})
     tid = create.json()["id"]
-    client.patch(f"/tasks/{tid}/complete")
-    resp = client.patch(f"/tasks/{tid}/complete")
+    tc.patch(f"/tasks/{tid}/complete")
+    resp = tc.patch(f"/tasks/{tid}/complete")
     assert resp.status_code == 409
     assert resp.json()["detail"] == "task is already done"
 
 
-def test_complete_not_found():
+def test_complete_not_found(tc):
     # REQ-009: complete nonexistent -> 404
-    resp = client.patch("/tasks/9999/complete")
+    resp = tc.patch("/tasks/9999/complete")
     assert resp.status_code == 404
     assert resp.json()["detail"] == "task not found"
 
 
-def test_delete_task():
+def test_delete_task(tc):
     # REQ-010: delete -> 204, no longer in list
-    create = client.post("/tasks", json={"title": "Delete me"})
+    create = tc.post("/tasks", json={"title": "Delete me"})
     tid = create.json()["id"]
-    resp = client.delete(f"/tasks/{tid}")
+    resp = tc.delete(f"/tasks/{tid}")
     assert resp.status_code == 204
     assert resp.text == ""
     # does not appear in list
-    resp = client.get("/tasks")
+    resp = tc.get("/tasks")
     ids = [t["id"] for t in resp.json()]
     assert tid not in ids
 
 
-def test_delete_not_found():
+def test_delete_not_found(tc):
     # REQ-009: delete nonexistent -> 404
-    resp = client.delete("/tasks/9999")
+    resp = tc.delete("/tasks/9999")
     assert resp.status_code == 404
     assert resp.json()["detail"] == "task not found"

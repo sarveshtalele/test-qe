@@ -1,3 +1,114 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>App</title></head>
-<body><div id="root"><h1>App</h1></div></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Task Tracker</title>
+<style>
+  body { font-family: sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+  h1 { color: #333; }
+  ul { list-style: none; padding: 0; }
+  li { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid #ccc; }
+  li span { flex: 1; }
+  .error { color: #c00; margin-top: 0.5rem; }
+  form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; }
+  form label { display: flex; flex-direction: column; font-size: 0.875rem; }
+  form input { padding: 0.25rem; }
+  button { cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="root">
+  <h1>Task Tracker</h1>
+  <div id="error" class="error"></div>
+  <form id="addForm">
+    <label>Title
+      <input type="text" id="titleInput" required maxlength="120" />
+    </label>
+    <label>Due date
+      <input type="date" id="dueDateInput" />
+    </label>
+    <button type="submit">Add Task</button>
+  </form>
+  <ul id="taskList"></ul>
+</div>
+<script>
+(async function() {
+  const taskList = document.getElementById('taskList');
+  const errorDiv = document.getElementById('error');
+  const addForm = document.getElementById('addForm');
+  const titleInput = document.getElementById('titleInput');
+  const dueDateInput = document.getElementById('dueDateInput');
+
+  async function loadTasks() {
+    const res = await fetch('/tasks');
+    const tasks = await res.json();
+    taskList.innerHTML = '';
+    for (const task of tasks) {
+      const li = document.createElement('li');
+      const info = document.createElement('span');
+      const statusText = task.status === 'done' ? '[Done]' : '[Open]';
+      info.textContent = `${task.title} – due: ${task.due_date || 'none'} ${statusText}`;
+      li.appendChild(info);
+
+      if (task.status === 'open') {
+        const doneBtn = document.createElement('button');
+        doneBtn.textContent = 'Done';
+        doneBtn.addEventListener('click', async () => {
+          const res = await fetch(`/tasks/${task.id}/complete`, { method: 'PATCH' });
+          if (res.ok) {
+            await loadTasks();
+          } else {
+            const data = await res.json();
+            errorDiv.textContent = data.detail || 'Error completing task';
+          }
+        });
+        li.appendChild(doneBtn);
+      }
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', async () => {
+        const res = await fetch(`/tasks/${task.id}`, { method: 'DELETE' });
+        if (res.ok) {
+          await loadTasks();
+        } else {
+          const data = await res.json();
+          errorDiv.textContent = data.detail || 'Error deleting task';
+        }
+      });
+      li.appendChild(deleteBtn);
+
+      taskList.appendChild(li);
+    }
+  }
+
+  addForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorDiv.textContent = '';
+    const title = titleInput.value.trim();
+    const due_date = dueDateInput.value || null;
+    const res = await fetch('/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, due_date }),
+    });
+    if (res.ok) {
+      titleInput.value = '';
+      dueDateInput.value = '';
+      await loadTasks();
+    } else {
+      const data = await res.json();
+      const detail = data.detail;
+      if (Array.isArray(detail)) {
+        errorDiv.textContent = detail.map(e => e.msg).join('; ');
+      } else {
+        errorDiv.textContent = detail || 'Error creating task';
+      }
+    }
+  });
+
+  await loadTasks();
+})();
+</script>
+</body>
+</html>
