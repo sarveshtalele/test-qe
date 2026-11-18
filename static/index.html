@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Task Tracker</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { color: #333; }
+    .error { color: red; margin-top: 0.5rem; }
+    form { margin-bottom: 2rem; }
+    form input, form button { margin-right: 0.5rem; }
+    ul { list-style: none; padding: 0; }
+    li { border: 1px solid #ccc; padding: 0.5rem 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+    li span.status { font-size: 0.9rem; color: #555; }
+    button.done { background: #4caf50; color: white; border: none; padding: 0.3rem 0.6rem; cursor: pointer; }
+    button.delete { background: #f44336; color: white; border: none; padding: 0.3rem 0.6rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Task Tracker</h1>
+  <div id="error" class="error"></div>
+  <form id="add-task-form">
+    <input type="text" id="title" placeholder="Task title" required>
+    <input type="date" id="due-date" placeholder="Due date (optional)">
+    <button type="submit">Add Task</button>
+  </form>
+  <ul id="task-list"></ul>
+  <script>
+    const form = document.getElementById('add-task-form');
+    const titleInput = document.getElementById('title');
+    const dueDateInput = document.getElementById('due-date');
+    const errorDiv = document.getElementById('error');
+    const taskList = document.getElementById('task-list');
+
+    async function loadTasks() {
+      try {
+        const res = await fetch('/tasks');
+        const tasks = await res.json();
+        renderTasks(tasks);
+      } catch (err) {
+        errorDiv.textContent = 'Failed to load tasks.';
+      }
+    }
+
+    function renderTasks(tasks) {
+      taskList.innerHTML = '';
+      tasks.forEach(task => {
+        const li = document.createElement('li');
+        const info = document.createElement('span');
+        info.innerHTML = `<strong>${escapeHtml(task.title)}</strong> | Due: ${task.due_date || '—'} | <span class="status">${task.status}</span>`;
+        li.appendChild(info);
+
+        const actions = document.createElement('span');
+        if (task.status === 'open') {
+          const doneBtn = document.createElement('button');
+          doneBtn.className = 'done';
+          doneBtn.textContent = 'Done';
+          doneBtn.onclick = () => markDone(task.id);
+          actions.appendChild(doneBtn);
+        }
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.onclick = () => deleteTask(task.id);
+        actions.appendChild(deleteBtn);
+
+        li.appendChild(actions);
+        taskList.appendChild(li);
+      });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function addTask(event) {
+      event.preventDefault();
+      errorDiv.textContent = '';
+      const title = titleInput.value;
+      const dueDate = dueDateInput.value || null;
+      const payload = { title };
+      if (dueDate) payload.due_date = dueDate;
+
+      try {
+        const res = await fetch('/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          titleInput.value = '';
+          dueDateInput.value = '';
+          await loadTasks();
+        } else {
+          const err = await res.json();
+          errorDiv.textContent = err.detail || 'Failed to add task.';
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Network error.';
+      }
+    }
+
+    async function markDone(id) {
+      try {
+        const res = await fetch(`/tasks/${id}/done`, { method: 'PUT' });
+        if (res.ok) {
+          await loadTasks();
+        } else {
+          const err = await res.json();
+          errorDiv.textContent = err.detail || 'Failed to mark task as done.';
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Network error.';
+      }
+    }
+
+    async function deleteTask(id) {
+      try {
+        const res = await fetch(`/tasks/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          await loadTasks();
+        } else {
+          const err = await res.json();
+          errorDiv.textContent = err.detail || 'Failed to delete task.';
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Network error.';
+      }
+    }
+
+    form.addEventListener('submit', addTask);
+    loadTasks();
+  </script>
+</body>
+</html>
