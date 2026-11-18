@@ -69,6 +69,7 @@ def create_task(body: TaskCreateRequest) -> dict:
     }
     _next_id += 1
     _tasks.insert(0, task)  # newest first by insert at front
+    task["due_date"] = body.due_date
     return task
 
 
