@@ -33,3 +33,49 @@ def test_health_check_200():
     reply = client.request('GET', '/health')
     assert reply.status_code == 200, reply.text
     assert reply.json()['status'] == 'ok'
+
+def test_create_task_201():
+    reply = client.request('POST', '/tasks', json={'title': 'x'})
+    assert reply.status_code == 201, reply.text
+    _keys(reply, ['id', 'title', 'due_date', 'status'])
+
+def test_create_task_422():
+    reply = client.request('POST', '/tasks', json={'title': ''})
+    assert reply.status_code == 422, reply.text
+    _has(reply, 'title must be 1 to 120 characters')
+
+def test_create_task_422_2():
+    reply = client.request('POST', '/tasks', json={'title': 'x', 'due_date': 'not-a-date'})
+    assert reply.status_code == 422, reply.text
+    _has(reply, 'due_date must be YYYY-MM-DD')
+
+def test_list_tasks_200():
+    reply = client.request('GET', '/tasks')
+    assert reply.status_code == 200, reply.text
+    _keys(reply, ['tasks'])
+
+def test_complete_task_200():
+    made = client.request('POST', '/tasks', json={'title': 'x'})
+    assert made.status_code == 201, made.text
+    reply = client.request('PATCH', '/tasks/{}/complete'.format(made.json()["id"]))
+    assert reply.status_code == 200, reply.text
+    _keys(reply, ['id', 'title', 'due_date', 'status'])
+
+def test_complete_task_404():
+    reply = client.request('PATCH', '/tasks/999999/complete')
+    assert reply.status_code == 404, reply.text
+    _has(reply, 'task not found')
+
+def test_delete_task_204():
+    made = client.request('POST', '/tasks', json={'title': 'x'})
+    assert made.status_code == 201, made.text
+    reply = client.request('DELETE', '/tasks/{}'.format(made.json()["id"]))
+    assert reply.status_code == 204, reply.text
+
+def test_delete_task_404():
+    reply = client.request('DELETE', '/tasks/999999')
+    assert reply.status_code == 404, reply.text
+    _has(reply, 'task not found')
+
+# not generated: list_tasks 422 (the status query parameter is not 'open' or 'done'): not generated, the condition depends on earlier state or cannot be produced deterministically
+# not generated: complete_task 409 (the task is already done): not generated, the condition depends on earlier state or cannot be produced deterministically
