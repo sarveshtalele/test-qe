@@ -1,0 +1,111 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Tracker</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    const API_BASE = '/';
+
+    async function api(path, options = {}) {
+      const res = await fetch(API_BASE + path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      if (options.method === 'DELETE') {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.detail || 'Delete failed');
+        }
+        return null;
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Request failed');
+      }
+      return data;
+    }
+
+    async function loadTasks() {
+      const data = await api('tasks');
+      const list = document.getElementById('task-list');
+      list.innerHTML = '';
+      data.tasks.forEach(task => {
+        const item = document.createElement('li');
+        item.setAttribute('data-testid', 'task-item');
+        item.innerHTML = `
+          <span>${escapeHtml(task.title)}</span>
+          <span> - Due: ${task.due_date ? escapeHtml(task.due_date) : 'No due date'}</span>
+          <span> - Status: ${escapeHtml(task.status)}</span>
+          ${task.status === 'open' ? `<button data-testid="done-button" onclick="markDone(${task.id})">Done</button>` : ''}
+          <button data-testid="delete-button" onclick="deleteTask(${task.id})">Delete</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    async function addTask(event) {
+      event.preventDefault();
+      const titleInput = document.getElementById('task-title-input');
+      const dueDateInput = document.getElementById('task-due-date-input');
+      const errorEl = document.getElementById('task-form-error');
+      errorEl.textContent = '';
+      const title = titleInput.value;
+      const due_date = dueDateInput.value || null;
+      try {
+        await api('tasks', {
+          method: 'POST',
+          body: JSON.stringify({ title, due_date }),
+        });
+        titleInput.value = '';
+        dueDateInput.value = '';
+        await loadTasks();
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    }
+
+    async function markDone(id) {
+      try {
+        await api('tasks/' + id + '/complete', { method: 'PATCH' });
+        await loadTasks();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteTask(id) {
+      try {
+        await api('tasks/' + id, { method: 'DELETE' });
+        await loadTasks();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    window.onload = function() {
+      const root = document.getElementById('root');
+      root.innerHTML = `<h1>App</h1>\n
+        <form data-testid="task-form" onsubmit="addTask(event)">
+          <label for="task-title-input">Title</label>
+          <input data-testid="task-title-input" id="task-title-input" type="text" placeholder="Title" required>
+          <label for="task-due-date-input">Due date (optional)</label>
+          <input data-testid="task-due-date-input" id="task-due-date-input" type="date" placeholder="Due date (optional)">
+          <button data-testid="task-submit-button" type="submit">Add task</button>
+        </form>
+        <div id="task-form-error" data-testid="task-form-error" style="color:red;"></div>
+        <ul data-testid="task-list" id="task-list"></ul>
+      `;
+      loadTasks();
+    };
+  </script>
+</body>
+</html>
