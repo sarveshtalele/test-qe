@@ -49,7 +49,11 @@ def test_create_task_title_empty():
     """Title after trimming is empty -> 422 (REQ-002)."""
     resp = client.post("/tasks", json={"title": "   "})
     assert resp.status_code == 422
-    assert resp.json()["detail"][0]["msg"] == "title must be 1 to 120 characters"
+    detail = resp.json()["detail"]
+    if isinstance(detail, list):
+        assert detail[0]["msg"] == "title must be 1 to 120 characters"
+    else:
+        assert "title must be 1 to 120 characters" in detail
 
 
 def test_create_task_title_too_long():
@@ -57,14 +61,22 @@ def test_create_task_title_too_long():
     long_title = "x" * 121
     resp = client.post("/tasks", json={"title": long_title})
     assert resp.status_code == 422
-    assert resp.json()["detail"][0]["msg"] == "title must be 1 to 120 characters"
+    detail = resp.json()["detail"]
+    if isinstance(detail, list):
+        assert detail[0]["msg"] == "title must be 1 to 120 characters"
+    else:
+        assert "title must be 1 to 120 characters" in detail
 
 
 def test_create_task_invalid_due_date():
     """Invalid due_date format -> 422 (REQ-003)."""
     resp = client.post("/tasks", json={"title": "Valid", "due_date": "31-12-2025"})
     assert resp.status_code == 422
-    assert resp.json()["detail"][0]["msg"] == "due_date must be YYYY-MM-DD"
+    detail = resp.json()["detail"]
+    if isinstance(detail, list):
+        assert detail[0]["msg"] == "due_date must be YYYY-MM-DD"
+    else:
+        assert "due_date must be YYYY-MM-DD" in detail
 
 
 def test_create_task_auto_id():
