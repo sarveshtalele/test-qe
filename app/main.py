@@ -2,11 +2,35 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 app = FastAPI()
+
+
+# ---------------------------------------------------------------------------
+# Custom 422 handler to match contract messages exactly
+# ---------------------------------------------------------------------------
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+from fastapi.exceptions import RequestValidationError
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Determine which field caused the error and return the specific message.
+    for error in exc.errors():
+        loc = error.get("loc", [])
+        if "title" in loc and error["type"] in ("string_too_short", "string_too_long"):
+            return JSONResponse(status_code=422, content={"detail": "title must be 1 to 120 characters"})
+        if "due_date" in loc and error["type"] == "date_from_datetime_parsing":
+            return JSONResponse(status_code=422, content={"detail": "due_date must be YYYY-MM-DD"})
+    # Fallback to default
+    return JSONResponse(status_code=422, content={"detail": "Validation error"})
 
 
 # ---------------------------------------------------------------------------
@@ -68,10 +92,17 @@ def create_task(payload: TaskCreate) -> dict:
     title = payload.title.strip()
     if not title or len(title) > 120:
         raise HTTPException(status_code=422, detail="title must be 1 to 120 characters")
+    if payload.due_date is None:
+        due_date_str = None
+    else:
+        d = payload.due_date
+        due_date_str = d.isoformat()
+        if not isinstance(d, date):
+            raise HTTPException(status_code=422, detail="due_date must be YYYY-MM-DD")
     task = {
         "id": _next_id,
         "title": title,
-        "due_date": payload.due_date.isoformat() if payload.due_date else None,
+        "due_date": due_date_str,
         "status": STATUS_OPEN,
     }
     _tasks.append(task)
