@@ -1,5 +1,5 @@
 import pytest
-from starlette.testclient import TestClient
+from fastapi.testclient import TestClient
 
 from app.main import app
 
@@ -9,9 +9,9 @@ app.dependency_overrides = {}
 @pytest.fixture
 def tc():
     # Reset store for each test
-    import app.tasks
+    import app.tasks as tasks_mod
     from app.task_store import TaskStore
-    app.tasks.store = TaskStore()
+    tasks_mod.store = TaskStore()
     return TestClient(app)
 
 
