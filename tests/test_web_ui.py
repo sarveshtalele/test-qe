@@ -6,10 +6,7 @@ from app.main import app
 
 @pytest.fixture
 def client():
-    # Ensure clean store by importing app's global store after reset
-    from app.tasks import store
     from app.task_store import TaskStore
-    # Reassign the module-level variable (store is a module variable)
     import app.tasks
     app.tasks.store = TaskStore()
     return TestClient(app)
