@@ -9,7 +9,7 @@ app = FastAPI()
 app.include_router(task_router)
 
 
-@app.get("/health")
+@app.get("/health", status_code=200)
 def health() -> dict:
     return {"status": "ok"}
 
