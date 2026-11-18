@@ -1,3 +1,4 @@
+# HTTP status codes used: 200, 201, 204, 409, 404, 422
 from typing import Optional
 
 from app.models import Task
