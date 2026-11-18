@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Task Tracker</title>
+</head>
+<body>
+  <h1>Task Tracker</h1>
+
+  <!-- Task list (REQ-011) -->
+  <div data-testid="task-list" role="list">
+    {% for task in tasks %}
+      <div data-testid="task-item" role="item">
+        <span data-testid="task-title" role="text">{{ task.title }}</span>
+        <span data-testid="task-due-date" role="text">{{ task.due_date if task.due_date else '' }}</span>
+        <span data-testid="task-status" role="text">{{ task.status }}</span>
+
+        <!-- Done button (REQ-012) -->
+        {% if task.status == 'open' %}
+          <form method="post" action="/tasks/{{ task.id }}/done" style="display:inline;">
+            <button data-testid="done-button" role="button" type="submit">Done</button>
+          </form>
+        {% endif %}
+
+        <!-- Delete button (REQ-012) -->
+        <form method="post" action="/tasks/{{ task.id }}/delete" style="display:inline;">
+          <button data-testid="delete-button" role="button" type="submit">Delete</button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Add task form (REQ-011, REQ-013) -->
+  <form data-testid="add-task-form" role="form" method="post" action="/">
+    <label>
+      Title:
+      <input data-testid="task-title-input" role="input" type="text" name="title" value="{{ title_input }}" required>
+    </label>
+    <label>
+      Due date (YYYY-MM-DD):
+      <input data-testid="task-due-date-input" role="input" type="text" name="due_date" value="{{ due_date_input }}">
+    </label>
+    <button data-testid="add-task-submit" role="button" type="submit">Add task</button>
+  </form>
+
+  <!-- Error display (REQ-013) -->
+  {% if error %}
+    <div data-testid="task-error" role="error">{{ error }}</div>
+  {% endif %}
+</body>
+</html>
