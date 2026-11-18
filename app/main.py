@@ -11,6 +11,7 @@ app.include_router(tasks_router)
 
 @app.get("/health")
 def health() -> dict:
+    # NFR-1: Returns HTTP 200 with {"status": "ok"}
     return {"status": "ok"}
 
 

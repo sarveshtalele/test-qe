@@ -141,3 +141,14 @@ def test_delete_task_not_found():
     reply = client.delete("/tasks/99999")
     assert reply.status_code == 404
     assert "task not found" in reply.text
+
+
+def test_tasks_in_memory_cleared_on_restart():
+    # REQ-015: Tasks are kept in memory; a restart clears them.
+    # Simulate restart by resetting internal state
+    import app.tasks as tasks_module
+    tasks_module._tasks.clear()
+    tasks_module._next_id = 1
+    reply = client.get("/tasks")
+    assert reply.status_code == 200
+    assert reply.json() == []
