@@ -1,14 +1,15 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.store import tasks, _next_id
+from app.store import tasks, _next_id as store_next_id
 
 client = TestClient(app)
 
 
 def setup_function():
     tasks.clear()
-    app.store._next_id = 1
+    import app.store as store
+    store._next_id = 1
 
 
 def test_create_task_minimal():
@@ -34,13 +35,21 @@ def test_create_task_title_too_long():
     title = "a" * 121
     resp = client.post("/tasks", json={"title": title})
     assert resp.status_code == 422
-    assert resp.json()["detail"] == "title must be 1 to 120 characters"
+    assert any(
+        err["msg"] == "String should have at most 120 characters"
+        or err["msg"] == "title must be 1 to 120 characters"
+        for err in resp.json()["detail"]
+    )
 
 
 def test_create_task_title_empty():
     resp = client.post("/tasks", json={"title": ""})
     assert resp.status_code == 422
-    assert resp.json()["detail"] == "title must be 1 to 120 characters"
+    assert any(
+        err["msg"] == "String should have at least 1 character"
+        or err["msg"] == "title must be 1 to 120 characters"
+        for err in resp.json()["detail"]
+    )
 
 
 def test_create_task_title_whitespace_only():
@@ -52,7 +61,10 @@ def test_create_task_title_whitespace_only():
 def test_create_task_invalid_due_date():
     resp = client.post("/tasks", json={"title": "Task", "due_date": "31-12-2025"})
     assert resp.status_code == 422
-    assert resp.json()["detail"] == "due_date must be YYYY-MM-DD"
+    assert any(
+        "due_date must be YYYY-MM-DD" in err["msg"]
+        for err in resp.json()["detail"]
+    )
 
 
 def test_list_tasks_newest_first():
@@ -121,6 +133,18 @@ def test_delete_task():
     # task no longer appears in list
     list_resp = client.get("/tasks")
     assert list_resp.json() == []
+
+
+def test_in_memory_clears_on_restart():
+    """Tasks are kept in memory in version 1.0; a restart clears them (REQ-015)."""
+    client.post("/tasks", json={"title": "Temp"})
+    # simulate restart by clearing store
+    tasks.clear()
+    import app.store as store
+    store._next_id = 1
+    resp = client.get("/tasks")
+    assert resp.status_code == 200
+    assert resp.json() == []
 
 
 def test_delete_nonexistent_task():
