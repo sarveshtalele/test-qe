@@ -8,6 +8,7 @@ client = TestClient(app)
 
 
 def setup_function():
+    import app.store as store_module
     tasks.clear()
     store_module._next_id = 1
 
