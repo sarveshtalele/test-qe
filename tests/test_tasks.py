@@ -1,8 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.store import tasks
-import app.store
+from app.store import tasks, _next_id
 
 client = TestClient(app)
 
