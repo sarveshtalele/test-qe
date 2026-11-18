@@ -76,22 +76,20 @@ function renderTask(task) {
   li.appendChild(statusSpan);
   li.appendChild(document.createTextNode(')'));
 
-  if (task.status === 'open') {
-    const doneBtn = document.createElement('button');
-    doneBtn.setAttribute('data-testid', 'done-button');
-    doneBtn.setAttribute('role', 'button');
-    doneBtn.textContent = 'Done';
-    doneBtn.addEventListener('click', async () => {
-      try {
-        clearError();
-        await completeTask(task.id);
-        loadTasks();
-      } catch (e) {
-        showError(e.message);
-      }
-    });
-    li.appendChild(doneBtn);
-  }
+  const doneBtn = document.createElement('button');
+  doneBtn.setAttribute('data-testid', 'done-button');
+  doneBtn.setAttribute('role', 'button');
+  doneBtn.textContent = 'Done';
+  doneBtn.addEventListener('click', async () => {
+    try {
+      clearError();
+      await completeTask(task.id);
+      loadTasks();
+    } catch (e) {
+      showError(e.message);
+    }
+  });
+  li.appendChild(doneBtn);
 
   const deleteBtn = document.createElement('button');
   deleteBtn.setAttribute('data-testid', 'delete-button');
