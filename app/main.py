@@ -87,3 +87,11 @@ def delete_task(task_id: int):
         raise HTTPException(status_code=404, detail="task not found")
     del tasks_db[task_id]
     return None
+
+
+# Reset DB for testing (contract tests rely on clean state)
+@app.on_event("startup")
+def reset_db():
+    global tasks_db, next_id
+    tasks_db = {}
+    next_id = 1
