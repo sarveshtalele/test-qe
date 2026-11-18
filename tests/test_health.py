@@ -15,4 +15,4 @@ def test_health_returns_200_with_status_ok() -> None:
 def test_page_is_served():
     reply = client.get("/")
     assert reply.status_code == 200
-    assert "<h1>App</h1>" in reply.text
+    assert "<h1>Task Tracker</h1>" in reply.text
