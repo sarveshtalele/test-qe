@@ -6,6 +6,7 @@ client = TestClient(app)
 
 
 def test_health_is_ok():
+    """REQ-014: The API answers GET /health with HTTP 200 and {"status": "ok"}."""
     reply = client.get("/health")
     assert reply.status_code == 200
     assert reply.json() == {"status": "ok"}
