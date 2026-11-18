@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Task Tracker</title>
+<style>
+  body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { color: #333; }
+  .task { border: 1px solid #ccc; border-radius: 4px; padding: 0.5rem 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+  .task span { flex: 1; }
+  .task .title { font-weight: bold; }
+  .task .meta { color: #666; font-size: 0.9em; margin-left: 1rem; }
+  .task button { margin-left: 0.5rem; }
+  .error { color: red; margin-top: 0.5rem; }
+  form { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem; max-width: 300px; }
+  form input, form button { padding: 0.4rem; }
+</style>
+</head>
+<body>
+<div id="root">
+  <h1>App</h1>
+
+  <div data-testid="task-list" role="list">
+    <!-- tasks will be inserted here -->
+  </div>
+
+  <div data-testid="add-task-error" role="error" aria-label="Error message"></div>
+
+  <form data-testid="add-task-form" role="form">
+    <label>Title: <input type="text" data-testid="task-title-input" role="input" aria-label="Title" /></label>
+    <label>Due date: <input type="date" data-testid="task-due-date-input" role="input" aria-label="Due date" /></label>
+    <button type="submit">Add Task</button>
+  </form>
+</div>
+
+<script>
+const API_BASE = '';
+
+async function fetchTasks() {
+  const resp = await fetch(`${API_BASE}/tasks`);
+  const data = await resp.json();
+  return data.tasks;
+}
+
+async function renderTasks() {
+  const tasks = await fetchTasks();
+  const listEl = document.querySelector('[data-testid="task-list"]');
+  listEl.innerHTML = '';
+  tasks.forEach(task => {
+    const item = document.createElement('div');
+    item.className = 'task';
+    item.setAttribute('data-testid', `task-item-${task.id}`);
+    item.setAttribute('role', 'item');
+    item.innerHTML = `
+      <span class="title">${esc(task.title)}</span>
+      <span class="meta">${esc(task.due_date ? 'Due: '+task.due_date : '')} (${task.status})</span>
+      <span>
+        ${task.status === 'open' ? `<button data-testid="done-button-${task.id}" role="button" aria-label="Done" onclick="completeTask(${task.id})">Done</button>` : ''}
+        <button data-testid="delete-button-${task.id}" role="button" aria-label="Delete" onclick="deleteTask(${task.id})">Delete</button>
+      </span>
+    `;
+    listEl.appendChild(item);
+  });
+}
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+document.querySelector('[data-testid="add-task-form"]').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const title = document.querySelector('[data-testid="task-title-input"]').value;
+  const due_date = document.querySelector('[data-testid="task-due-date-input"]').value;
+  const errorEl = document.querySelector('[data-testid="add-task-error"]');
+  errorEl.textContent = '';
+
+  const resp = await fetch(`${API_BASE}/tasks`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({title, due_date: due_date || ''})
+  });
+  if (resp.ok) {
+    document.querySelector('[data-testid="task-title-input"]').value = '';
+    document.querySelector('[data-testid="task-due-date-input"]').value = '';
+    await renderTasks();
+  } else {
+    const data = await resp.json();
+    errorEl.textContent = data.detail || 'Error creating task';
+  }
+});
+
+async function completeTask(id) {
+  await fetch(`${API_BASE}/tasks/${id}/complete`, {method: 'PATCH'});
+  await renderTasks();
+}
+
+async function deleteTask(id) {
+  await fetch(`${API_BASE}/tasks/${id}`, {method: 'DELETE'});
+  await renderTasks();
+}
+
+renderTasks();
+</script>
+</body>
+</html>
