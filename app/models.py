@@ -22,9 +22,10 @@ class TaskCreateRequest(BaseModel):
     @field_validator("title")
     @classmethod
     def title_length_after_trim(cls, v: str) -> str:
-        if not (1 <= len(v) <= 120):
+        trimmed = v.strip()
+        if not (1 <= len(trimmed) <= 120):
             raise ValueError("title must be 1 to 120 characters")
-        return v
+        return trimmed
 
     @field_validator("due_date")
     @classmethod

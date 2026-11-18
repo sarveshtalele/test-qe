@@ -45,7 +45,17 @@ def test_create_task_title_too_long():
     detail = reply.json()["detail"]
     # Pydantic v2 wraps errors in a list of dicts with 'msg'
     errors = [e.get("msg", "") if isinstance(e, dict) else str(e) for e in detail]
-    assert any("title must be 1 to 120 characters" in e for e in errors)
+    # Flatten all 'msg' values from each error
+    msgs = []
+    for e in detail:
+        if isinstance(e, dict) and "msg" in e:
+            msgs.append(e["msg"])
+        elif isinstance(e, dict):
+            for v in e.values():
+                msgs.append(str(v))
+        else:
+            msgs.append(str(e))
+    assert any("title must be 1 to 120 characters" in m for m in msgs)
 
 
 def test_create_task_title_after_trim_too_long():
@@ -54,7 +64,16 @@ def test_create_task_title_after_trim_too_long():
     assert reply.status_code == 422
     detail = reply.json()["detail"]
     errors = [e.get("msg", "") if isinstance(e, dict) else str(e) for e in detail]
-    assert any("title must be 1 to 120 characters" in e for e in errors)
+    msgs = []
+    for e in detail:
+        if isinstance(e, dict) and "msg" in e:
+            msgs.append(e["msg"])
+        elif isinstance(e, dict):
+            for v in e.values():
+                msgs.append(str(v))
+        else:
+            msgs.append(str(e))
+    assert any("title must be 1 to 120 characters" in m for m in msgs)
 
 
 def test_create_task_title_empty_after_trim():
@@ -63,7 +82,16 @@ def test_create_task_title_empty_after_trim():
     assert reply.status_code == 422
     detail = reply.json()["detail"]
     errors = [e.get("msg", "") if isinstance(e, dict) else str(e) for e in detail]
-    assert any("title must be 1 to 120 characters" in e for e in errors)
+    msgs = []
+    for e in detail:
+        if isinstance(e, dict) and "msg" in e:
+            msgs.append(e["msg"])
+        elif isinstance(e, dict):
+            for v in e.values():
+                msgs.append(str(v))
+        else:
+            msgs.append(str(e))
+    assert any("title must be 1 to 120 characters" in m for m in msgs)
 
 
 def test_create_task_invalid_due_date():
