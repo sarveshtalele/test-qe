@@ -39,12 +39,17 @@ def test_create_task_with_due_date() -> None:
     assert data["status"] == "open"
 
 
-def test_create_task_title_blank_returns_422() -> None:
+def test_create_task_title_too_short_returns_422() -> None:
     # REQ-003: title after trimming less than 1 character
     payload = {"title": "   "}
     response = client.post("/tasks", json=payload)
     assert response.status_code == 422
-    assert response.json()["detail"][0]["msg"] == "Value error, title must be 1 to 120 characters"
+    detail = response.json()["detail"]
+    # The validator raises ValueError with message "title must be 1 to 120 characters"
+    assert any(
+        "title must be 1 to 120 characters" in err.get("msg", "")
+        for err in detail
+    )
 
 
 def test_create_task_title_too_long_returns_422() -> None:
@@ -54,8 +59,7 @@ def test_create_task_title_too_long_returns_422() -> None:
     response = client.post("/tasks", json=payload)
     assert response.status_code == 422
     detail = response.json()["detail"]
-    # FastAPI returns an error detail list; Pydantic's Field validation raises a different error than the validator
-    # Check for the min_length/max_length condition: it produces an error with 'msg' containing 'String should have at most 120 characters'
+    # The Field min_length/max_length validation produces a message containing "String should have at most 120 characters"
     assert any(
         "String should have at most 120 characters" in err.get("msg", "")
         for err in detail
@@ -67,6 +71,13 @@ def test_create_task_title_empty_string_returns_422() -> None:
     payload = {"title": ""}
     response = client.post("/tasks", json=payload)
     assert response.status_code == 422
+    detail = response.json()["detail"]
+    # The Field min_length catches empty string with message "String should have at least 1 character"
+    # The validator also catches it with "title must be 1 to 120 characters" but Field runs first
+    assert any(
+        "String should have at least 1 character" in err.get("msg", "")
+        for err in detail
+    )
 
 
 def test_create_task_invalid_due_date_format_returns_422() -> None:
@@ -75,7 +86,7 @@ def test_create_task_invalid_due_date_format_returns_422() -> None:
     response = client.post("/tasks", json=payload)
     assert response.status_code == 422
     detail = response.json()["detail"]
-    # The pattern validation on the Field rejects the wrong format with a msg like 'String should match pattern "^\\d{4}-\\d{2}-\\d{2}$"'
+    # The Field pattern validation catches it with message "String should match pattern"
     assert any(
         "String should match pattern" in err.get("msg", "")
         for err in detail

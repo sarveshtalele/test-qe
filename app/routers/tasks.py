@@ -22,7 +22,7 @@ def list_tasks(status: Optional[str] = Query(None)) -> list[TaskOut]:
     return store.list_all(status=status)
 
 
-@router.patch("/{task_id}/complete", response_model=TaskOut)
+@router.patch("/{task_id}/complete", response_model=TaskOut, status_code=200)
 def complete_task(task_id: int) -> TaskOut:
     task = store.get(task_id)
     if task is None:
