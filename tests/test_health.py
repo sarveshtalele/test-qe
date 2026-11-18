@@ -14,4 +14,6 @@ def test_health_is_ok():
 def test_page_is_served():
     reply = client.get("/")
     assert reply.status_code == 200
-    assert "<h1>App</h1>" in reply.text
+    assert "<h1>Task Tracker</h1>" in reply.text
+    assert 'id="add-form"' in reply.text
+    assert 'id="task-list"' in reply.text

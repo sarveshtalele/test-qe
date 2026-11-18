@@ -1,3 +1,130 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>App</title></head>
-<body><div id="root"><h1>App</h1></div></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Task Tracker</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background: #f5f5f5; }
+    .error { color: red; margin-bottom: 0.5rem; }
+    form { margin: 1rem 0; }
+    label { display: block; margin-top: 0.5rem; }
+    input, button { margin-top: 0.25rem; }
+  </style>
+</head>
+<body>
+  <h1>Task Tracker</h1>
+  <div id="error" class="error" style="display:none;"></div>
+
+  <h2>Add Task</h2>
+  <form id="add-form">
+    <label>Title: <input type="text" name="title" required maxlength="120"></label>
+    <label>Due Date: <input type="date" name="due_date"></label>
+    <button type="submit">Add Task</button>
+  </form>
+
+  <h2>Tasks</h2>
+  <table>
+    <thead>
+      <tr><th>Title</th><th>Due Date</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="task-list"></tbody>
+  </table>
+
+  <script>
+    const API_BASE = '';
+
+    async function loadTasks() {
+      const res = await fetch(API_BASE + '/tasks');
+      const tasks = await res.json();
+      const tbody = document.getElementById('task-list');
+      tbody.innerHTML = '';
+      for (const task of tasks) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(task.title)}</td>
+          <td>${task.due_date || '-'}</td>
+          <td>${task.status}</td>
+          <td>
+            ${task.status === 'open' ? `<button onclick="completeTask(${task.id})">Done</button>` : ''}
+            <button onclick="deleteTask(${task.id})">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.appendChild(document.createTextNode(text));
+      return div.innerHTML;
+    }
+
+    function showError(message) {
+      const el = document.getElementById('error');
+      el.textContent = message;
+      el.style.display = 'block';
+    }
+
+    function hideError() {
+      document.getElementById('error').style.display = 'none';
+    }
+
+    async function completeTask(id) {
+      hideError();
+      const res = await fetch(API_BASE + '/tasks/' + id + '/complete', { method: 'PATCH' });
+      if (res.ok) {
+        await loadTasks();
+      } else {
+        const data = await res.json();
+        showError(data.detail || 'Failed to complete task');
+      }
+    }
+
+    async function deleteTask(id) {
+      hideError();
+      const res = await fetch(API_BASE + '/tasks/' + id, { method: 'DELETE' });
+      if (res.ok) {
+        await loadTasks();
+      } else {
+        const data = await res.json();
+        showError(data.detail || 'Failed to delete task');
+      }
+    }
+
+    document.getElementById('add-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      hideError();
+      const formData = new FormData(this);
+      const title = formData.get('title').trim();
+      const due_date = formData.get('due_date') || null;
+      const res = await fetch(API_BASE + '/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, due_date })
+      });
+      if (res.ok) {
+        this.reset();
+        await loadTasks();
+      } else {
+        const data = await res.json();
+        if (data.detail) {
+          // Pydantic validation errors come as array of objects
+          if (Array.isArray(data.detail)) {
+            showError(data.detail.map(d => d.msg || d.message).join('; '));
+          } else {
+            showError(data.detail);
+          }
+        } else {
+          showError('Failed to add task');
+        }
+        // Keep input: do not reset the form
+      }
+    });
+
+    loadTasks();
+  </script>
+</body>
+</html>
