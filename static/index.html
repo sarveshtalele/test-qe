@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Task Tracker</title>
+  <style>
+    body { font-family: sans-serif; margin: 2em; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; align-items: center; gap: 1em; padding: 0.5em 0; border-bottom: 1px solid #ccc; }
+    .status { text-transform: capitalize; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <h1>Task Tracker</h1>
+    <form id="add-form">
+      <input type="text" id="title-input" placeholder="Task title" required>
+      <input type="date" id="due-date-input">
+      <button type="submit">Add Task</button>
+      <span id="form-error" class="error"></span>
+    </form>
+    <ul id="task-list"></ul>
+  </div>
+  <script>
+    async function loadTasks() {
+      const res = await fetch('/tasks');
+      const tasks = await res.json();
+      const list = document.getElementById('task-list');
+      list.innerHTML = '';
+      tasks.forEach(task => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span>${escapeHtml(task.title)}</span>
+          <span>${task.due_date || 'No due date'}</span>
+          <span class="status">${task.status}</span>
+          ${task.status === 'open' ? `<button class="done-btn" data-id="${task.id}">Done</button>` : ''}
+          <button class="delete-btn" data-id="${task.id}">Delete</button>
+        `;
+        list.appendChild(li);
+      });
+    }
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+    document.getElementById('add-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('title-input').value;
+      const due_date = document.getElementById('due-date-input').value || null;
+      const errorSpan = document.getElementById('form-error');
+      errorSpan.textContent = '';
+      const res = await fetch('/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, due_date })
+      });
+      if (res.ok) {
+        document.getElementById('title-input').value = '';
+        document.getElementById('due-date-input').value = '';
+        loadTasks();
+      } else {
+        const errData = await res.json();
+        errorSpan.textContent = errData.detail || 'Error creating task';
+      }
+    });
+    document.getElementById('task-list').addEventListener('click', async (e) => {
+      const id = e.target.dataset.id;
+      if (e.target.classList.contains('done-btn')) {
+        await fetch('/tasks/' + id + '/complete', { method: 'PATCH' });
+        loadTasks();
+      } else if (e.target.classList.contains('delete-btn')) {
+        await fetch('/tasks/' + id, { method: 'DELETE' });
+        loadTasks();
+      }
+    });
+    loadTasks();
+  </script>
+</body>
+</html>
