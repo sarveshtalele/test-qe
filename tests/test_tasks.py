@@ -1,15 +1,15 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.store import tasks, _next_id as store_next_id
+from app.store import tasks
+import app.store as store_module
 
 client = TestClient(app)
 
 
 def setup_function():
     tasks.clear()
-    import app.store as store
-    store._next_id = 1
+    store_module._next_id = 1
 
 
 def test_create_task_minimal():
@@ -138,10 +138,8 @@ def test_delete_task():
 def test_in_memory_clears_on_restart():
     """Tasks are kept in memory in version 1.0; a restart clears them (REQ-015)."""
     client.post("/tasks", json={"title": "Temp"})
-    # simulate restart by clearing store
     tasks.clear()
-    import app.store as store
-    store._next_id = 1
+    store_module._next_id = 1
     resp = client.get("/tasks")
     assert resp.status_code == 200
     assert resp.json() == []

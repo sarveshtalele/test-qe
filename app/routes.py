@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field, field_validator
@@ -57,7 +57,7 @@ def create_task(body: TaskCreate) -> TaskOut:
     return TaskOut(**task)
 
 
-@router.get("/tasks")
+@router.get("/tasks", status_code=200)
 def list_tasks(status: str | None = Query(None)) -> list[TaskOut]:
     if status is not None and status not in ("open", "done"):
         raise HTTPException(status_code=422, detail="status must be open or done")
@@ -66,7 +66,7 @@ def list_tasks(status: str | None = Query(None)) -> list[TaskOut]:
     return [TaskOut(**t) for t in result]
 
 
-@router.patch("/tasks/{task_id}/complete")
+@router.patch("/tasks/{task_id}/complete", status_code=200)
 def complete_task(task_id: int) -> TaskOut:
     task = tasks.get(task_id)
     if task is None:

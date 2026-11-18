@@ -12,7 +12,6 @@ def test_page_has_form_and_title():
     resp = client.get("/")
     assert resp.status_code == 200
     html = resp.text
-    # Static page must include a form with an add button
     assert "<form" in html
     assert "Add Task" in html
     assert "task-list" in html
@@ -24,12 +23,9 @@ def test_page_has_expected_script_and_placeholders():
     renders tasks, form, and buttons."""
     resp = client.get("/")
     html = resp.text
-    # Script must handle Done and Delete buttons
     assert "done-btn" in html
     assert "delete-btn" in html
-    # The page uses fetch to load tasks
     assert "fetch('/tasks')" in html
-    # Form fields exist
     assert "title-input" in html
     assert "due-date-input" in html
     assert "form-error" in html
