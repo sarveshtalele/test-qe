@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Task Tracker</title>
+<style>
+  body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; background: #f5f5f5; }
+  h1 { color: #333; }
+  .error { color: #b00; margin-top: 0.5rem; }
+  ul { list-style: none; padding: 0; }
+  li { background: #fff; margin: 0.5rem 0; padding: 0.7rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+  .done { background: #e0ffe0; }
+  .done .title { text-decoration: line-through; color: #666; }
+  form { background: #fff; padding: 1rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+  form input { display: block; width: 100%; margin-bottom: 0.5rem; padding: 0.4rem; box-sizing: border-box; }
+  form button { padding: 0.5rem 1rem; background: #07c; color: #fff; border: none; border-radius: 3px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="root">
+  <h1>Task Tracker</h1>
+  <div id="error"></div>
+  <form id="add-form">
+    <input id="title-input" name="title" placeholder="Task title" required>
+    <input id="due-date-input" name="due_date" type="date" placeholder="Due date (optional)">
+    <button type="submit">Add Task</button>
+  </form>
+  <ul id="task-list"></ul>
+</div>
+<script>
+  const apiBase = '';
+  const taskList = document.getElementById('task-list');
+  const errorDiv = document.getElementById('error');
+  const form = document.getElementById('add-form');
+  const titleInput = document.getElementById('title-input');
+  const dueDateInput = document.getElementById('due-date-input');
+
+  async function loadTasks() {
+    const res = await fetch(apiBase + '/tasks');
+    const tasks = await res.json();
+    taskList.innerHTML = '';
+    tasks.forEach(t => {
+      const li = document.createElement('li');
+      if (t.status === 'done') li.className = 'done';
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'title';
+      const due = t.due_date ? ' - due: ' + t.due_date : '';
+      titleSpan.textContent = t.title + due + ' [' + t.status + ']';
+      li.appendChild(titleSpan);
+      const btnGroup = document.createElement('span');
+      if (t.status === 'open') {
+        const doneBtn = document.createElement('button');
+        doneBtn.textContent = 'Done';
+        doneBtn.onclick = async () => {
+          await fetch(apiBase + '/tasks/' + t.id + '/complete', { method: 'PATCH' });
+          loadTasks();
+        };
+        btnGroup.appendChild(doneBtn);
+      }
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.onclick = async () => {
+        await fetch(apiBase + '/tasks/' + t.id, { method: 'DELETE' });
+        loadTasks();
+      };
+      btnGroup.appendChild(deleteBtn);
+      li.appendChild(btnGroup);
+      taskList.appendChild(li);
+    });
+  }
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    errorDiv.textContent = '';
+    const payload = { title: titleInput.value, due_date: dueDateInput.value || null };
+    const res = await fetch(apiBase + '/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      titleInput.value = '';
+      dueDateInput.value = '';
+      loadTasks();
+    } else {
+      const data = await res.json();
+      let msg = '';
+      if (Array.isArray(data.detail)) {
+        msg = data.detail.map(e => e.msg).join('; ');
+      } else {
+        msg = data.detail;
+      }
+      errorDiv.textContent = msg;
+    }
+  };
+
+  loadTasks();
+</script>
+</body>
+</html>
