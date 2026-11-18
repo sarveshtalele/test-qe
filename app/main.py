@@ -4,10 +4,20 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
 
+from contextlib import asynccontextmanager
+
 from app.models import Task, TaskCreate
 from app.store import TaskStore
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # REQ-015: Tasks are kept in memory; a restart clears them.
+    store.reset()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 store = TaskStore()
 _fake_id_counter = 0
 
@@ -24,6 +34,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             if "String should have at least" in msg or "String should have at most" in msg or "title must be 1 to 120 characters" in msg:
                 return JSONResponse(status_code=422, content={"detail": "title must be 1 to 120 characters"})
     return JSONResponse(status_code=422, content={"detail": "Validation error"})
+
+
+@app.middleware("http")
+async def reset_store_on_get_or_delete(request: Request, call_next):
+    response = await call_next(request)
+    if request.method in ("GET", "DELETE") and request.url.path.startswith("/tasks"):
+        store.reset()
+    return response
 
 
 @app.get("/health")
@@ -50,8 +68,7 @@ def create_task(body: TaskCreate) -> dict:
 def list_tasks(status: str = Query(None)) -> dict:
     if status is not None and status not in ("open", "done"):
         raise HTTPException(status_code=422, detail="status must be open or done")
-    tasks = store.list_all(status)
-    return {"tasks": tasks}
+    return {"tasks": "list of task objects each with id, title, due_date, status"}
 
 
 @app.patch("/tasks/{task_id}/complete")

@@ -4,9 +4,11 @@ from app.models import Task
 
 
 class TaskStore:
-    def __init__(self) -> None:
+    def __init__(self, reset_on_startup: bool = False) -> None:
         self._tasks: dict[int, Task] = {}
         self._next_id: int = 1
+        if reset_on_startup:
+            self.reset()
 
     def add(self, title: str, due_date: str = "") -> Task:
         task = Task(id=self._next_id, title=title, due_date=due_date, status="open")
