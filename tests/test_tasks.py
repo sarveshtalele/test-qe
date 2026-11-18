@@ -44,6 +44,7 @@ def test_create_task_title_too_long():
     assert reply.status_code == 422
     detail = reply.json()["detail"]
     # Pydantic v2 error list: each element is a dict with 'msg', 'type', etc.
+    # The error is from the Field max_length=120, not from our custom validator
     msgs = [e["msg"] for e in detail]
     assert any("title must be 1 to 120 characters" in m for m in msgs)
 
@@ -53,7 +54,9 @@ def test_create_task_title_after_trim_too_long():
     reply = client.post("/tasks", json=payload)
     assert reply.status_code == 422
     detail = reply.json()["detail"]
+    # After trimming, length is 121, still too long; error is from our custom validator
     msgs = [e["msg"] for e in detail]
+    # Both the Field and the custom validator may produce error messages; accept either
     assert any("title must be 1 to 120 characters" in m for m in msgs)
 
 
@@ -62,6 +65,7 @@ def test_create_task_title_empty_after_trim():
     reply = client.post("/tasks", json=payload)
     assert reply.status_code == 422
     detail = reply.json()["detail"]
+    # After trimming, length is 0, fails our custom validator
     msgs = [e["msg"] for e in detail]
     assert any("title must be 1 to 120 characters" in m for m in msgs)
 
@@ -76,7 +80,8 @@ def test_create_task_invalid_due_date():
 
 
 def test_list_tasks_newest_first():
-    # Clear by creating fresh tasks (shared DB; order relies on created_at)
+    # Create fresh tasks and ensure we only check the last three
+    existing_count = len(client.get("/tasks").json())
     r1 = client.post("/tasks", json={"title": "First"})
     r2 = client.post("/tasks", json={"title": "Second"})
     r3 = client.post("/tasks", json={"title": "Third"})
@@ -88,9 +93,13 @@ def test_list_tasks_newest_first():
 
 
 def test_list_tasks_filter_open():
-    # Create one open and one done task
-    open_task = client.post("/tasks", json={"title": "Open task"}).json()
-    done_task = client.post("/tasks", json={"title": "Done task"}).json()
+    # Use unique titles to avoid collision
+    import uuid
+    uid = str(uuid.uuid4())[:8]
+    open_title = f"Open task {uid}"
+    done_title = f"Done task {uid}"
+    open_task = client.post("/tasks", json={"title": open_title}).json()
+    done_task = client.post("/tasks", json={"title": done_title}).json()
     client.patch(f"/tasks/{done_task['id']}/complete")
     reply = client.get("/tasks", params={"status": "open"})
     assert reply.status_code == 200

@@ -80,11 +80,11 @@ def test_delete_button_removes_task(page: Page):
 def test_api_error_shown_next_to_form(page: Page):
     """REQ-013: When the API rejects a new task, the page shows the API's message next to the form and keeps what was typed."""
     page.goto(BASE_URL + "/")
+    # Wait for page to fully load (loadTasks may finish after initial render)
+    page.wait_for_load_state("networkidle")
     # Submit an empty title (will be rejected)
     page.fill("#title-input", "   ")  # Spaces only, will be trimmed to empty and rejected
     page.fill("#due-date-input", "")  # clear date
-    # Wait for page to fully load (loadTasks may finish after initial render)
-    page.wait_for_load_state("networkidle")
     page.click("#add-form button[type='submit']")
     # The error should appear in the #error div (after async response)
     page.wait_for_selector("#error:not(:empty)", timeout=5000)
