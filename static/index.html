@@ -1,3 +1,86 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>App</title></head>
-<body><div id="root"><h1>App</h1></div></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>App</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    .task { border: 1px solid #ccc; padding: 0.5rem 1rem; margin-bottom: 0.5rem; display: flex; gap: 1rem; align-items: center; }
+    .task span { flex: 1; }
+    .error { color: #c00; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <h1>App</h1>
+    <form data-testid="add-task-form" id="add-task-form">
+      <input data-testid="task-title-input" id="task-title-input" type="text" placeholder="Task title" required />
+      <input data-testid="task-due-date-input" id="task-due-date-input" type="text" placeholder="YYYY-MM-DD (optional)" />
+      <button data-testid="add-task-button" type="submit">Add Task</button>
+    </form>
+    <div data-testid="error-message" id="error-message" class="error" style="display:none"></div>
+    <ul data-testid="task-list" id="task-list"></ul>
+  </div>
+
+  <script>
+    const API = '';
+    const form = document.getElementById('add-task-form');
+    const titleInput = document.getElementById('task-title-input');
+    const dueDateInput = document.getElementById('task-due-date-input');
+    const taskList = document.getElementById('task-list');
+    const errorDiv = document.getElementById('error-message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorDiv.style.display = 'none';
+      const title = titleInput.value;
+      const due_date = dueDateInput.value || null;
+      const res = await fetch(API + '/tasks', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ title, due_date })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        errorDiv.textContent = err.detail || 'Error';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      titleInput.value = '';
+      dueDateInput.value = '';
+      loadTasks();
+    });
+
+    async function loadTasks() {
+      const res = await fetch(API + '/tasks');
+      const data = await res.json();
+      taskList.innerHTML = '';
+      for (const task of data.tasks) {
+        const li = document.createElement('li');
+        li.setAttribute('data-testid', 'task-item');
+        li.className = 'task';
+        li.innerHTML = `
+          <span><strong>${task.title}</strong> (${task.due_date || 'no due date'}) – ${task.status}</span>
+          ${task.status === 'open' ? `<button data-testid="done-button" class="done-btn">Done</button>` : ''}
+          <button data-testid="delete-button" class="delete-btn">Delete</button>
+        `;
+        const doneBtn = li.querySelector('.done-btn');
+        if (doneBtn) {
+          doneBtn.addEventListener('click', async () => {
+            await fetch(API + '/tasks/' + task.id + '/complete', { method: 'PATCH' });
+            loadTasks();
+          });
+        }
+        const deleteBtn = li.querySelector('.delete-btn');
+        deleteBtn.addEventListener('click', async () => {
+          await fetch(API + '/tasks/' + task.id, { method: 'DELETE' });
+          loadTasks();
+        });
+        taskList.appendChild(li);
+      }
+    }
+
+    loadTasks();
+  </script>
+</body>
+</html>
