@@ -61,7 +61,7 @@ def list_tasks(
     return [TaskOut(**t) for t in tasks]
 
 
-@tasks_router.put("/tasks/{task_id}/done")
+@tasks_router.put("/tasks/{task_id}/done", status_code=200)
 def mark_task_done(task_id: int) -> TaskOut:
     if task_id not in tasks_db:
         raise HTTPException(status_code=404, detail="task not found")

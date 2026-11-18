@@ -1,14 +1,13 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.store import tasks_db, next_id
+from app.store import tasks_db
 
 client = TestClient(app)
 
 
 def setup_function():
     tasks_db.clear()
-    # reset counter by reimporting next_id (hack for simplicity)
     import app.store
     app.store._counter = [0]
 
