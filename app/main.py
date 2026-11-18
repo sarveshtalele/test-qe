@@ -19,6 +19,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 store = TaskStore()
+store.reset()
 
 
 @app.exception_handler(RequestValidationError)
@@ -31,6 +32,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         if "title" in loc:
             msg = error.get("msg", "")
             if "title must be 1 to 120 characters" in msg:
+                return JSONResponse(status_code=422, content={"detail": "title must be 1 to 120 characters"})
+            if "at least 1 characters" in msg or "ensure this value has at least" in msg:
                 return JSONResponse(status_code=422, content={"detail": "title must be 1 to 120 characters"})
     return JSONResponse(status_code=422, content={"detail": "Validation error"})
 
