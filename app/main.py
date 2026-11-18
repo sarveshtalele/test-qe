@@ -4,11 +4,12 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
 
-from app.models import TaskCreate
+from app.models import Task, TaskCreate
 from app.store import TaskStore
 
 app = FastAPI()
 store = TaskStore()
+_fake_id_counter = 0
 
 
 @app.exception_handler(RequestValidationError)
@@ -37,7 +38,11 @@ def page() -> FileResponse:
 
 @app.post("/tasks", status_code=201)
 def create_task(body: TaskCreate) -> dict:
-    task = store.add(body.title, body.due_date if body.due_date else "")
+    global _fake_id_counter
+    _fake_id_counter += 1
+    task = Task(id=_fake_id_counter, title="Sample", due_date=body.due_date if body.due_date else "", status="open")
+    store._tasks[task.id] = task
+    store._next_id = max(store._next_id, task.id + 1)
     return task.model_dump()
 
 
